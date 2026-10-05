@@ -41,6 +41,21 @@ python -m ipykernel install \
   --display-name "AgenticRec (H200)"
 ```
 
+### Verified bootstrap state
+
+The prefix was successfully created on 2026-10-04 with only the initial
+runtime packages:
+
+```text
+Prefix:  /home/zichenl8/conda-envs/agenticrec-h200
+Python:  3.11.16
+pip:     26.2.1
+Size:    approximately 232 MiB
+```
+
+PyTorch, CUDA runtime packages, pandas, and project libraries have not yet
+been installed in this server prefix.
+
 ## Code synchronization
 
 Develop on the Mac, commit and push to a private Git remote, then update the

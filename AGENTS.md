@@ -40,6 +40,8 @@ The authoritative training target supplied by the user is:
 
 Use a Python 3.11 Conda prefix environment for the server baseline unless a later HSTU dependency establishes a different requirement. Prefer an actual environment path such as `~/conda-envs/agenticrec-h200`, stored on persistent home storage, and activate it by prefix. Keep the reproducible environment specification in the repository, but never place or commit the physical Conda environment directory inside the repository. Register the prefix environment as a Jupyter kernel after creation.
 
+The persistent prefix bootstrap was verified on 2026-10-04: `/home/zichenl8/conda-envs/agenticrec-h200` contains Python 3.11.16 and pip 26.2.1 and occupied approximately 232 MiB before project libraries were installed. The server's `/home/zichenl8/AgenticRec` directory was empty at verification time and is reserved as the future Git checkout.
+
 Treat the `nvidia-smi` CUDA value as driver capability, not proof of the installed CUDA toolkit or the correct PyTorch build. Before creating or changing the server environment, ask for or inspect the server's Python, Conda, PyTorch, CUDA runtime, package-manager, and job-scheduler details. Do not guess an exact CUDA/PyTorch build from the screenshot alone.
 
 Execution policy:
