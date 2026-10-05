@@ -35,25 +35,26 @@ def build_training_example(
         target_ids = [0, 0, 31, 9, 71]
         padding_mask = [False, False, True, True, True]
 
-    Hints:
-        1. A sequence needs at least two items to create one input-target pair.
-        2. Keep at most ``max_seq_len + 1`` recent items before shifting.
-        3. Build inputs from every retained item except the last one.
-        4. Build targets from every retained item except the first one.
-        5. Add ``PADDING_INDEX`` values on the left until both lists have
-           exactly ``max_seq_len`` elements.
-        6. The mask is True where the final input is not padding.
-
-    Your task is intentionally limited to this function. The datasets,
-    DataLoader integration, evaluation logic, and tests are already provided.
+    The most recent ``max_seq_len + 1`` items are retained so that shifting the
+    sequence produces at most ``max_seq_len`` next-item prediction positions.
     """
     if max_seq_len <= 0:
         raise ValueError("max_seq_len must be positive")
     if len(sequence) < 2:
         raise ValueError("A training sequence must contain at least two items")
+    if any(item <= PADDING_INDEX for item in sequence):
+        raise ValueError("Training sequences must contain only positive item IDs")
 
-    # TODO(user): Follow hints 2-6 above and return the three Python lists.
-    raise NotImplementedError("Complete build_training_example using the hints above")
+    retained_sequence = sequence[-(max_seq_len + 1) :]
+    input_ids = retained_sequence[:-1]
+    target_ids = retained_sequence[1:]
+
+    padding_size = max_seq_len - len(input_ids)
+    input_ids = [PADDING_INDEX] * padding_size + input_ids
+    target_ids = [PADDING_INDEX] * padding_size + target_ids
+    padding_mask = [item != PADDING_INDEX for item in input_ids]
+
+    return input_ids, target_ids, padding_mask
 
 
 def load_sequence_records(path: Path) -> list[UserSequenceRecord]:
@@ -92,6 +93,8 @@ class SASRecTrainDataset(Dataset[dict[str, torch.Tensor]]):
     """Return shifted next-item training examples for SASRec."""
 
     def __init__(self, path: Path, max_seq_len: int) -> None:
+        if max_seq_len <= 0:
+            raise ValueError("max_seq_len must be positive")
         self.records = load_sequence_records(path)
         self.max_seq_len = max_seq_len
 

@@ -11,6 +11,7 @@ import torch
 
 from src.data.dataset import (
     SASRecEvalDataset,
+    SASRecTrainDataset,
     build_training_example,
     create_dataloader,
 )
@@ -38,6 +39,10 @@ class BuildTrainingExampleTest(unittest.TestCase):
     def test_rejects_a_sequence_without_a_next_item(self) -> None:
         with self.assertRaises(ValueError):
             build_training_example([12], max_seq_len=5)
+
+    def test_rejects_padding_inside_an_unpadded_sequence(self) -> None:
+        with self.assertRaises(ValueError):
+            build_training_example([12, 0, 31], max_seq_len=5)
 
 
 class EvaluationDatasetTest(unittest.TestCase):
@@ -77,6 +82,23 @@ class EvaluationDatasetTest(unittest.TestCase):
         self.assertEqual(tuple(batch["input_ids"].shape), (1, 5))
         self.assertEqual(tuple(batch["padding_mask"].shape), (1, 5))
         self.assertEqual(tuple(batch["target_id"].shape), (1,))
+
+    def test_training_dataset_returns_shifted_tensor_sequences(self) -> None:
+        dataset = SASRecTrainDataset(self.sequence_path, max_seq_len=4)
+        example = dataset[0]
+
+        self.assertTrue(
+            torch.equal(example["input_ids"], torch.tensor([0, 0, 12, 31]))
+        )
+        self.assertTrue(
+            torch.equal(example["target_ids"], torch.tensor([0, 0, 31, 9]))
+        )
+        self.assertTrue(
+            torch.equal(
+                example["padding_mask"],
+                torch.tensor([False, False, True, True]),
+            )
+        )
 
 
 if __name__ == "__main__":

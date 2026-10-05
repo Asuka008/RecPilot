@@ -64,19 +64,19 @@ writes the following files to `data/processed/`:
 In short: raw interaction rows are turned into trustworthy model inputs and
 fair evaluation targets.
 
-## Guided SASRec data-loading exercise
+## SASRec data loading
 
-The PyTorch Dataset and DataLoader scaffold lives in `src/data/dataset.py`.
-Complete only `build_training_example()` by following its English hints, then
-run:
+The complete PyTorch Dataset and DataLoader implementation lives in
+`src/data/dataset.py`. It builds shifted next-item training pairs and
+chronology-safe validation and test examples. Verify it on the server with:
 
 ```bash
 python -m unittest tests.test_dataset -v
 ```
 
-The exercise is complete when all six dataset tests pass. Before the function
-is implemented, two training-example tests are expected to fail with
-`NotImplementedError`; the evaluation and DataLoader tests should already pass.
+The data-loading milestone is complete when all dataset tests pass. See
+`docs/learning-01-sasrec-data-loader.md` for the first teaching note, including
+the sequence transformation, tensor contract, masking, and leakage prevention.
 
 ## Conventions
 

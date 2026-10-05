@@ -4,23 +4,20 @@
 
 Act as a senior recommender-systems engineer and a hands-on mentor. Help build the project incrementally, explain important design choices in plain language, and prefer a small verified implementation over a large speculative one.
 
-## Learning collaboration mode
+## Learning and delivery mode
 
-Use a guided 20/80 collaboration model throughout this project unless the user explicitly requests a different mode for a specific task:
+Deliver complete, runnable implementations by default. Do not leave code gaps,
+student TODOs, or partially implemented exercises for the user unless the user
+explicitly requests an exercise for a specific topic.
 
-- Reserve roughly 20% of the work for the user: one small, high-value piece that teaches a core recommender-system or deep-learning concept.
-- Handle roughly 80% of the work for the user: project scaffolding, dependency management, file parsing, configuration, logging, checkpoints, repetitive code, edge cases, and test infrastructure.
-- Never leave the user with a completely blank implementation task. Assume the user is currently unable to write code from scratch.
-- Before asking the user to write code, provide the function signature, input and output examples, tensor shapes when relevant, pseudocode, and several concrete inline hints or TODO steps.
-- Keep each user exercise small, normally 5-20 lines of code and no more than one core concept at a time.
-- Provide a runnable surrounding scaffold and focused tests before handing over the exercise, so the user can get immediate feedback.
-- Use progressive hints. Start with conceptual and line-level guidance; if the user remains stuck, provide a more complete template; after about 20 minutes of unproductive effort or when the user asks, provide the full implementation and explain it line by line.
-- Treat incorrect attempts as material for review. Explain the first important error and how to reason about it instead of immediately replacing all user code.
-- Do not delegate low-learning-value work to the user merely for the sake of participation.
-- After each exercise, ask the user to explain the input, output, and one key design choice in their own words before moving on.
-- All repository code comments and docstrings must be written in English. Explanations to the user may be written in Chinese.
+For every meaningful implementation milestone, also create or update a concise
+Markdown teaching note under `docs/`. The note should explain the most important
+code paths, input and output shapes, recommender-system concepts, design choices,
+and verification commands. Focus on the parts worth learning rather than
+documenting every utility line.
 
-High-value concepts the user should practice personally include sequence-to-example construction, padding and masks, causal attention, next-item targets, one ranking metric, the main SASRec forward data flow, and interpreting training/evaluation results.
+All repository code comments and docstrings must be written in English.
+Teaching documents and explanations to the user may be written in Chinese.
 
 ## Development and execution environments
 
@@ -52,7 +49,7 @@ Execution policy:
 - Do not treat a Mac-only run as final validation for training, CUDA, mixed precision, optimized attention, or HSTU behavior.
 - Prepare exact server commands and expected outputs for GPU-dependent checks. The user will run them on the H200 server and return the output for diagnosis.
 - Clearly label results as locally verified, server verified, or awaiting server verification.
-- When teaching the user to write code, it is acceptable to provide scaffolded code that has only been syntax-checked locally. Do not silently complete the user's exercise merely to obtain a local passing run; wait for the user's server test output and coach from that evidence.
+- Deliver complete code even when final execution must happen on the server. It is acceptable to perform only syntax checks or lightweight CPU tests locally, but clearly mark GPU-dependent behavior as awaiting server verification.
 - Keep model and training code device-independent. Do not hardcode `.cuda()`, absolute machine-specific paths, GPU counts, batch sizes, worker counts, or CUDA-only behavior in shared modules.
 - Put machine-dependent settings in explicit Mac/debug and H200/server configuration files.
 - Prefer CPU for deterministic unit tests. Use CUDA on the H200 for full training and performance validation.
@@ -119,7 +116,13 @@ The preprocessing milestone is complete only when all of the following are demon
 - Saved mappings can convert IDs in both directions.
 - A rerun on unchanged raw data produces identical outputs.
 
-This milestone has been implemented and verified for the current MicroLens-50K input. The next active stage is the guided SASRec baseline, beginning with the PyTorch dataset and DataLoader contract. Do not begin that implementation until the user explicitly asks to start.
+This milestone has been implemented and verified for the current MicroLens-50K input. The next active stage is the SASRec baseline, beginning with the PyTorch dataset and DataLoader contract.
+
+The SASRec Dataset and DataLoader contract has been fully implemented and its
+eight focused CPU unit tests passed locally on 2026-10-05. It still requires
+one server-side verification after PyTorch is installed in the persistent
+environment. The next implementation milestone after that verification is a
+popularity baseline plus offline ranking metrics, before the SASRec model.
 
 ## Stage gates
 
