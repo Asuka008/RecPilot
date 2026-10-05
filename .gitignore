@@ -1,0 +1,42 @@
+# macOS and editor files
+.DS_Store
+.idea/
+.vscode/
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+conda-envs/
+
+# Notebook state
+.ipynb_checkpoints/
+
+# Local assistant state
+.workbuddy/
+
+# Raw and processed datasets
+data/raw/*
+!data/raw/.gitkeep
+!data/raw/readme.txt
+data/processed/*
+!data/processed/.gitkeep
+
+# Training artifacts
+runs/
+outputs/
+checkpoints/
+wandb/
+*.pt
+*.pth
+*.ckpt
+
+# Secrets and local overrides
+.env
+.env.*
+*.local.yaml
+*.local.yml

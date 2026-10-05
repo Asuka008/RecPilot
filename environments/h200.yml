@@ -1,0 +1,9 @@
+name: agenticrec-h200
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+
+# GPU libraries will be added only after the persistent prefix environment
+# and the server's package installation path have been verified.
