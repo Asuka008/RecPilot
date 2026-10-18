@@ -1,0 +1,6 @@
+name: agenticrec-hstu-reference
+channels:
+  - defaults
+dependencies:
+  - python=3.11.16
+  - pip=26.2.1

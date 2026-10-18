@@ -1,0 +1,13 @@
+{
+  "device": "cuda:0",
+  "seed": 42,
+  "sequence_length": 8,
+  "history_lengths": [5, 3],
+  "embedding_dim": 8,
+  "attention_dim": 8,
+  "linear_dim": 8,
+  "num_heads": 1,
+  "atol": 0.00001,
+  "rtol": 0.0001,
+  "output_dir": "runs/hstu-reference-check"
+}
