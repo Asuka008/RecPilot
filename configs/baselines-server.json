@@ -1,0 +1,8 @@
+{
+  "data_dir": "data/processed",
+  "output_dir": "runs/baselines",
+  "models": ["popularity", "itemcf"],
+  "ks": [10, 20],
+  "itemcf_neighbors": 100,
+  "seed": 42
+}
