@@ -138,9 +138,14 @@ def main():
     parser.add_argument("--config", type=Path, default=ROOT / "configs/hstu-reference-check-server.json")
     parser.add_argument("--upstream-dir", type=Path,
                         default=Path.home() / "upstream/generative-recommenders-reference")
+    parser.add_argument("--compare-dense", action="store_true",
+                        help="Also compare the portable block against official outputs and gradients")
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
     validate_config(config)
+    if args.compare_dense:
+        from src.check_hstu_dense import validate_comparison_config
+        validate_comparison_config(config)
     spec = json.loads((ROOT / "configs/hstu-reference-upstream.json").read_text())
     upstream = args.upstream_dir.expanduser().resolve()
     now = datetime.now(timezone.utc)
@@ -151,6 +156,8 @@ def main():
               "upstream": {"path": str(upstream), "expected_revision": spec["revision"]},
               "runtime": {"python": sys.version, "executable": sys.executable,
                           "platform": platform.platform()}, "checks": {}}
+    if args.compare_dense:
+        result["scope"] = "tiny official/dense FP32 output and gradient parity; no dataset or training"
     torch = None
     device = None
     try:
@@ -197,6 +204,10 @@ def main():
         for mode in ("position_only", "time_and_position"):
             result["checks"][mode] = check_block(torch, device, config, module_name, mode)
             print(f"Official HSTU block ({mode}): PASS", flush=True)
+        if args.compare_dense:
+            from src.check_hstu_dense import compare_dense_blocks
+            result["checks"]["dense_comparison"] = {}
+            compare_dense_blocks(torch, device, config, module, result["checks"]["dense_comparison"])
         result["status"] = "PASS"
     except Exception as error:
         result["status"] = "FAIL"
@@ -221,7 +232,8 @@ def main():
     if result["status"] != "PASS":
         print(result.get("error", result.get("memory_error")), file=sys.stderr)
         raise SystemExit(1)
-    print("HSTU reference preflight: PASS", flush=True)
+    print("HSTU dense/reference comparison: PASS" if args.compare_dense else
+          "HSTU reference preflight: PASS", flush=True)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 from scripts.prepare_hstu_reference import ROOT, outside_project, prepare, source, validate_report
 from src.check_hstu_reference import validate_config, verify_upstream
+from src.check_hstu_dense import validate_comparison_config
 
 
 class PreflightConfigTest(unittest.TestCase):
@@ -27,6 +28,16 @@ class PreflightConfigTest(unittest.TestCase):
         self.assertIn(spec["hstu_source"], spec["files_sha256"])
         self.assertIn(spec["recipe"], spec["files_sha256"])
         self.assertEqual(spec["expected_packages"]["torch"], "2.10.0+cu128")
+
+    def test_dense_comparison_config_accepts_empty_rows_and_rejects_bad_cases(self):
+        config = json.loads((ROOT / "configs/hstu-dense-comparison-server.json").read_text())
+        validate_comparison_config(config)
+        for key, value in (("comparison_cases", []), ("comparison_seeds", [-1]),
+                           ("comparison_cases", [{"name": "empty", "history_lengths": [0, 0]}]),
+                           ("comparison_cases", [{"name": "too_long", "history_lengths": [999]}])):
+            invalid = {**config, key: value}
+            with self.subTest(key=key, value=value), self.assertRaises(ValueError):
+                validate_comparison_config(invalid)
 
     def test_main_reaches_package_validation_before_loading_model_libraries(self):
         import src.check_hstu_reference as preflight
