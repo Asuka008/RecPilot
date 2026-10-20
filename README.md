@@ -1,86 +1,264 @@
 # AgenticRec
 
-Generative recommendation system.
+A reproducible HSTU-based video recommendation project targeting MicroLens-50K.
+The project starts with chronological interaction data, shared ranking metrics,
+and simple baselines, then verifies HSTU against a pinned official implementation
+before training it on MicroLens.
 
-## Directory structure
+**Current milestone:** the official HSTU recipe completed 101 epochs on
+MovieLens-1M, with final metrics close to the upstream reference. MicroLens
+Popularity and ItemCF results are available; MicroLens HSTU training is next.
 
-```
-AgenticRec/
-├── configs/          # Portable experiment configurations.
-├── data/
-│   ├── raw/          # Original, immutable data dumps. Never edit in place.
-│   └── processed/    # Cleaned / tokenized datasets ready for training.
-├── docs/             # Project and server workflow documentation.
-├── environments/     # Reproducible Mac and H200 environment specifications.
-├── src/
-│   ├── data/          # PyTorch Dataset and DataLoader code.
-│   └── preprocess.py # Raw -> processed pipeline.
-├── tests/            # Focused automated tests.
-└── README.md
-```
+## Verified progress
 
-Datasets, physical Conda environments, checkpoints, and run logs are not stored
-in Git.
+Status as of **2026-10-19**, based on server outputs returned by the project owner.
 
-## Mac setup
+| Milestone | Status and evidence |
+|---|---|
+| MicroLens preprocessing | Deterministic sequences, reversible item mappings, and chronological leave-one-out splits verified locally; transferred file checksums matched |
+| Dataset / DataLoader | Eight synthetic CPU tests passed on the server |
+| Shared evaluation, Popularity, ItemCF | Eighteen combined Dataset/baseline tests passed; full MicroLens validation and test evaluation completed |
+| Official HSTU environment | Pinned source and dependencies verified; FBGEMM operations and official block checks passed on CUDA |
+| Portable dense HSTU block | Twelve server cases passed output and gradient comparisons against official blocks, covering position-only and time/position bias |
+| Pure-ID HSTU training components | Four-user synthetic fit reduced fixed-task loss by 99.3%; checkpoint output, RNG, and next-step continuation checks passed |
+| Official MovieLens-1M recipe | Batch 32/128 smoke checks and batch 128, 101-epoch training completed on the server |
+| MicroLens HSTU baseline | Not yet integrated into a full training/evaluation experiment |
+| Feature improvements and recommendation service | Planned; no measured results yet |
+
+The portable implementation is in [src/models/hstu.py](src/models/hstu.py) and
+[src/models/id_hstu.py](src/models/id_hstu.py). Block comparisons and synthetic
+training checks validate specific implementation behavior; they do not establish
+MicroLens recommendation quality or whole-model equivalence to the official recipe.
+
+## Results
+
+### MicroLens-50K baselines
+
+Training uses training histories only. Evaluation ranks the full mapped catalog,
+excludes padding and each user's visible history, and breaks score ties by
+ascending mapped item ID. Each split contains 50,000 user targets.
+
+| Split | Model | Recall@10 | NDCG@10 | Recall@20 | NDCG@20 |
+|---|---|---:|---:|---:|---:|
+| Validation | Popularity | 0.00424 | 0.002036 | 0.00718 | 0.002790 |
+| Validation | ItemCF | 0.04804 | 0.024495 | 0.07234 | 0.030645 |
+| Test | Popularity | 0.00244 | 0.001254 | 0.00378 | 0.001594 |
+| Test | ItemCF | 0.03534 | 0.017473 | 0.05760 | 0.023088 |
+
+ItemCF uses sparse cosine similarity and 100 neighbors per item. Targets whose
+items have zero training-history occurrences remain in the evaluation and are
+reported as a separate frequency group. Settings are in
+[configs/baselines-server.json](configs/baselines-server.json).
+
+### Official HSTU on MovieLens-1M
+
+Upstream: Meta's [generative-recommenders](https://github.com/meta-recsys/generative-recommenders/tree/10c4950343b98bacec9ffd5b8cd879f811fe2326),
+pinned at `10c4950343b98bacec9ffd5b8cd879f811fe2326`.
+The experiment uses `configs/ml-1m/hstu-sampled-softmax-n128-final.gin`:
+2 blocks, 1 head, embedding/QK/V dimensions 50, maximum history 200,
+128 sampled negatives, and batch 128 for 101 epochs.
+
+The observed column reports the preselected final epoch, index 100.
+The reference column is the **HSTU** row in the
+[pinned upstream README](https://github.com/meta-recsys/generative-recommenders/blob/10c4950343b98bacec9ffd5b8cd879f811fe2326/README.md),
+whose table is marked verified as of 2024-04-15.
+
+| Metric | Observed | Upstream reference | Difference |
+|---|---:|---:|---:|
+| HR@10 | 0.305960 | 0.3097 | -0.003740 |
+| NDCG@10 | 0.169352 | 0.1720 | -0.002648 |
+| HR@50 | 0.579139 | 0.5754 | +0.003739 |
+| NDCG@50 | 0.229818 | 0.2307 | -0.000882 |
+| HR@200 | 0.771854 | 0.7716 | +0.000254 |
+| NDCG@200 | 0.259080 | 0.2606 | -0.001520 |
+
+All six absolute differences are below 0.00374. They fall within the predeclared
+0.02 absolute engineering comparison band. This is one seeded run, not a
+statistical equivalence claim. The upstream table does not specify its checkpoint
+selection rule here; this project uses the final epoch without selecting the
+highest held-out score.
+
+The wrapper preserves official model, loss, split, and evaluation code. Adaptations
+include the pinned current dependency stack, one CUDA rank, two DataLoader workers
+with prefetch factor two, explicit Python/NumPy/PyTorch seeds, and isolated output
+directories. These differences should accompany any reproduction claim.
+
+The ML-1M and MicroLens results use different datasets and protocols and should
+not be compared as competing model scores. In particular, the official recipe
+uses its temporal bias and next-event timestamps; the planned MicroLens baseline
+will start with position-only bias.
+
+## Data contract
+
+The current MicroLens snapshot contains:
+
+- **50,000 users, 19,220 mapped items, 359,708 interactions**.
+- Full sequence length: mean 7.19, median 6, P99 24, maximum 218.
+- 730 mapped items never occur in training histories; they account for 844
+  validation targets and 2,226 test targets (4.452% of test users).
+
+Required input: `data/raw/MicroLens-50k_pairs.csv`, with columns `user`, `item`,
+and `timestamp`. Raw data is immutable and supplied separately from Git.
+Titles are optional metadata; no text features are used in the current experiments.
 
 ```bash
-conda env create -f environments/mac.yml
-conda activate agenticrec
+python -m src.preprocess --min-seq-len 5
 ```
 
-If the `agenticrec` environment already exists, synchronize it with:
+The pipeline validates interactions, sorts each user's history by time, remaps
+item IDs to contiguous positive integers, and reserves ID 0 for padding. For each
+retained user, the last item is test, the penultimate item is validation, and the
+preceding items are training history. Generated files:
+
+| File under `data/processed/` | Contents |
+|---|---|
+| `sequences.jsonl` | One record per user: `user_id`, `train`, `val`, `test` |
+| `item_mapping.json` | Forward and reverse item-ID mappings |
+| `metadata.json` | Preprocessing configuration, statistics, and source checksum |
+
+The Dataset creates left-padded shifted next-item training pairs. Validation sees
+training history; test sees training history plus the validation item. Padding and
+held-out targets are masked appropriately. This preserves chronology within each
+user; it does not establish a global-time cutoff across users.
+
+## Execution environments
+
+**Model, DataLoader, PyTorch, CUDA, and training verification run on the server.**
+The Mac is used for editing, preprocessing, syntax checks, and lightweight
+pure-Python checks. Do not download public datasets or launch model experiments
+on the Mac as part of the server workflow.
+
+The latest verified allocation was **NVIDIA A100-SXM4-80GB MIG 2g.20gb**, exposing
+19.50 GiB, rather than the originally intended H200. Inspect `nvidia-smi` before
+running; environment names do not identify the assigned hardware.
+
+The HSTU reference environment uses Python 3.11.16, PyTorch 2.10.0+cu128,
+FBGEMM-GPU 1.5.0, and FP32 with TF32 for the official recipe. Dependency specs are
+[environments/hstu-reference.yml](environments/hstu-reference.yml) and
+[environments/hstu-reference-requirements.txt](environments/hstu-reference-requirements.txt).
+
+The formal ML-1M run reported peak PyTorch **allocated/reserved memory of
+2.686/18.770 GiB**. Allocated measures live tensor storage; reserved includes
+allocator cache. These are separate peaks and exclude some external CUDA/NCCL
+allocations, so the run should not be described as using only 2.7 GiB of GPU memory.
+
+For a new server environment, use
+[scripts/prepare_hstu_reference.py](scripts/prepare_hstu_reference.py) from a
+Python 3.11 baseline environment. Its `inspect`, `plan`, `install`, and `source`
+actions separate hardware inspection, dependency planning, installation, and
+pinned source retrieval. Conda prefixes and the upstream checkout stay outside
+the repository. Review the generated dependency plan before installation.
+
+## Run on the configured server
+
+Run commands from the repository root. The examples assume the existing prefix
+environments and transferred MicroLens files are available.
+
+### MicroLens baselines
 
 ```bash
-conda env update -n agenticrec -f environments/mac.yml --prune
+conda activate "$HOME/conda-envs/agenticrec-h200"
+python -m unittest tests.test_dataset tests.test_baselines -v
+python -m src.run_baselines --config configs/baselines-server.json --split val
 ```
 
-The Mac is for editing, preprocessing, syntax checks, and the smallest local
-smoke tests. The H200 server is authoritative for PyTorch model and training
-validation. See `docs/server-workflow.md` for the persistent server layout.
-
-## Preprocessing the data
+Inspect validation results and freeze settings before evaluating test:
 
 ```bash
-python -m src.preprocess
+python -m src.run_baselines --config configs/baselines-server.json --split test
 ```
 
-The script validates the raw interactions, sorts each user's history by time,
-maps item IDs to continuous indices, and creates a leave-one-out split. It
-writes the following files to `data/processed/`:
-
-- `sequences.jsonl`: one chronological train/validation/test record per user
-- `item_mapping.json`: reversible original-item-ID and model-index mappings
-- `metadata.json`: preprocessing configuration, counts, and source checksum
-
-## Why preprocessing is needed
-
-- Data checks catch missing, duplicated, or malformed interactions before training.
-- Chronological user sequences let the model learn to predict the next item from past behavior.
-- Continuous item IDs can be used directly by the model's embedding table.
-- A time-preserving train/validation/test split prevents future behavior from leaking into training.
-- Saved mappings and deterministic outputs make experiments reproducible and comparable.
-
-In short: raw interaction rows are turned into trustworthy model inputs and
-fair evaluation targets.
-
-## SASRec data loading
-
-The complete PyTorch Dataset and DataLoader implementation lives in
-`src/data/dataset.py`. It builds shifted next-item training pairs and
-chronology-safe validation and test examples. Verify it on the server with:
+### HSTU implementation checks
 
 ```bash
-python -m unittest tests.test_dataset -v
+conda activate "$HOME/conda-envs/agenticrec-hstu-reference"
+python -m src.check_hstu_reference \
+  --config configs/hstu-dense-comparison-server.json --compare-dense
+python -m src.run_hstu_toy --config configs/hstu-toy-fit-server.json
 ```
 
-The data-loading milestone is complete when all dataset tests pass. See
-`docs/learning-01-sasrec-data-loader.md` for the first teaching note, including
-the sequence transformation, tensor contract, masking, and leakage prevention.
+The source checkout defaults to
+`~/upstream/generative-recommenders-reference`; retrieve and verify it with
+`python scripts/prepare_hstu_reference.py source` before these checks.
 
-## Conventions
+### Official MovieLens-1M experiment
 
-- `data/raw/` is read-only by convention. All derived artifacts go to `data/processed/`.
-- Preprocessing must be deterministic: same raw input -> identical processed output.
-- Intermediate artifacts are keyed by dataset name + config hash so multiple
-  experiments can coexist.
+The preparation action downloads **only ML-1M on the Linux server**, calls the
+official ML-1M preprocessor, and records data checksums. Existing prepared data
+is verified and reused. No MicroLens data is changed.
+
+```bash
+conda activate "$HOME/conda-envs/agenticrec-hstu-reference"
+python -m src.run_hstu_public prepare --config configs/hstu-ml1m-smoke-server.json
+python -m src.run_hstu_public smoke --config configs/hstu-ml1m-b128-smoke-server.json
+```
+
+After the smoke check passes, start a fresh 101-epoch experiment:
+
+```bash
+python -m unittest tests.test_hstu_public_config tests.test_hstu_public_training -v
+nvidia-smi
+python -m src.run_hstu_public train --config configs/hstu-ml1m-train-server.json
+```
+
+`train: PASS` means the training and artifact checks succeeded. The separate
+`WITHIN_TOLERANCE` / `REVIEW_REQUIRED` result describes the final metric comparison.
+Keep the foreground session alive until completion; this official trainer wrapper
+currently has no interrupted-run resume entry point.
+
+## Experiment artifacts and reproducibility
+
+Runs use separate UTC timestamp directories under `runs/`, excluded from Git.
+A formal ML-1M run records:
+
+- Git commit and dirty state, configuration and effective Gin bindings, random
+  seed, package versions, upstream source identity, and data checksums.
+- Actual GPU, precision, peak allocated/reserved memory, elapsed time, console
+  logs, and TensorBoard scalars.
+- All 101 epochs' six main ranking metrics, final metrics, and reference comparison.
+- A final checkpoint with model/optimizer `state_dict` and epoch, plus a metadata
+  sidecar linking its checksum, configuration, metrics, and experiment identity.
+
+The reported server run identifiers are:
+
+| Experiment | Directory under `runs/` |
+|---|---|
+| MicroLens validation baselines | `baselines/20261018T201816099815Z/` |
+| MicroLens test baselines | `baselines/20261018T202845819876Z/` |
+| Official ML-1M, 101 epochs | `hstu-ml1m-reference/20261020T033447917013Z/` |
+
+These artifacts live on the server and are not included in the Git repository.
+Raw/processed datasets, physical environments, logs, checkpoints, and credentials
+must be transferred or managed separately.
+
+## Repository layout
+
+```text
+configs/          Experiment settings and pinned reference manifests
+src/data/         Sequential Dataset and DataLoader
+src/models/       Portable dense HSTU block and pure-ID stack
+src/preprocess.py MicroLens preprocessing
+src/evaluation.py Shared full-catalog ranking metrics
+src/baselines.py  Popularity and sparse cosine ItemCF
+src/run_*.py      Baseline, synthetic HSTU, and official ML-1M entry points
+scripts/          Reference environment and source preparation
+tests/            Focused configuration, data, evaluation, and model checks
+environments/     Environment specifications
+docs/             Teaching notes and workflow documentation
+data/             Raw and processed data, supplied separately
+runs/             Generated experiment artifacts, ignored by Git
+```
+
+## Next milestone
+
+Integrate the pure-ID HSTU stack with the existing MicroLens Dataset and shared
+ranking protocol. Start with position-only bias, verify a short real-data training
+run, then train and select settings on validation data before a fixed test run.
+Compare against ItemCF and diagnose results by history length and target-item
+training frequency, including zero-occurrence targets.
+
+Text/content features must earn their cost in controlled experiments. A full
+SASRec comparison is optional; no superiority over SASRec is claimed. Agents are
+outside the current scope. A recommendation service and serving performance
+measurements remain future work; offline ranking results do not establish online
+CTR, watch-time lift, or production deployment.
