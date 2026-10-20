@@ -3,6 +3,7 @@
 import argparse
 from datetime import datetime, timezone
 import hashlib
+import importlib
 import importlib.metadata
 import json
 from pathlib import Path
@@ -185,7 +186,6 @@ def main():
         result["runtime"].update({"torch": torch.__version__, "cuda_runtime": torch.version.cuda,
                                  "device": str(device), "tf32": False})
         sys.path.insert(0, str(upstream))
-        import importlib
         module_name = "generative_recommenders.research.modeling.sequential.hstu"
         module = importlib.import_module(module_name)
         if Path(module.__file__).resolve() != upstream / spec["hstu_source"]:

@@ -1,7 +1,10 @@
 """Pure-Python safeguards; these tests never import torch or run a model."""
 
 import copy
+from contextlib import redirect_stderr, redirect_stdout
 import hashlib
+import importlib.metadata
+import io
 import json
 from pathlib import Path
 import subprocess
@@ -24,6 +27,29 @@ class PreflightConfigTest(unittest.TestCase):
         self.assertIn(spec["hstu_source"], spec["files_sha256"])
         self.assertIn(spec["recipe"], spec["files_sha256"])
         self.assertEqual(spec["expected_packages"]["torch"], "2.10.0+cu128")
+
+    def test_main_reaches_package_validation_before_loading_model_libraries(self):
+        import src.check_hstu_reference as preflight
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = {**self.config, "output_dir": str(root / "results")}
+            config_path = root / "config.json"
+            config_path.write_text(json.dumps(config))
+            failure = importlib.metadata.PackageNotFoundError("intentional-package-probe")
+            with (patch("sys.argv", ["check_hstu_reference", "--config", str(config_path)]),
+                  patch.object(preflight, "command", side_effect=["test-commit", ""]),
+                  patch.object(preflight, "verify_upstream", return_value="test-upstream"),
+                  patch.object(preflight.importlib.metadata, "distributions", return_value=[]),
+                  patch.object(preflight.importlib.metadata, "version", side_effect=failure) as version,
+                  redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO())):
+                with self.assertRaises(SystemExit) as exited:
+                    preflight.main()
+            self.assertEqual(exited.exception.code, 1)
+            version.assert_called_once()
+            result = json.loads(next((root / "results").glob("*/results.json")).read_text())
+            self.assertEqual(result["runtime"]["packages"], {})
+            self.assertEqual(result["error"]["type"], "PackageNotFoundError")
+            self.assertIn("intentional-package-probe", result["error"]["message"])
 
     def test_rejects_invalid_lengths_and_dimensions(self):
         for key, value in (("history_lengths", [0]), ("history_lengths", [9]),
