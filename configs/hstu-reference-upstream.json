@@ -1,7 +1,7 @@
 {
   "expected_packages": {
     "absl-py": "2.2.2",
-    "fbgemm-gpu": "1.5.0+cu128",
+    "fbgemm-gpu": "1.5.0",
     "gin-config": "0.5.0",
     "ipykernel": "6.29.5",
     "numpy": "1.26.4",

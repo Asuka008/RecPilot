@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from scripts.prepare_hstu_reference import ROOT, outside_project, source, validate_report
+from scripts.prepare_hstu_reference import ROOT, outside_project, prepare, source, validate_report
 from src.check_hstu_reference import validate_config, verify_upstream
 
 
@@ -132,6 +132,31 @@ class PreflightConfigTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "not overwriting"):
                     source(checkout)
                 self.assertEqual((checkout / "model.py").read_text(), "user changes\n")
+
+    def test_install_replaces_only_incompatible_fbgemm_build(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def fake_run(args, **kwargs):
+                if "-c" in args and "sys.version_info" in args[-1]:
+                    output = "3.11.16\n"
+                elif "-c" in args and "m.version('fbgemm-gpu')" in args[-1]:
+                    output = "1.5.0+cu128\n"
+                else:
+                    output = ""
+                return subprocess.CompletedProcess(args, 0, stdout=output)
+
+            with (patch("scripts.prepare_hstu_reference.check_platform"),
+                  patch("scripts.prepare_hstu_reference.validate_report"),
+                  patch("scripts.prepare_hstu_reference.run", side_effect=fake_run) as executed,
+                  redirect_stdout(io.StringIO())):
+                prepare("install", root / "environment", root)
+            forced = [call.args[0] for call in executed.call_args_list
+                      if "--force-reinstall" in call.args[0]]
+            self.assertEqual(len(forced), 1)
+            self.assertIn("--no-deps", forced[0])
+            self.assertTrue(forced[0][-1].startswith("fbgemm-gpu @ https://files.pythonhosted.org/"))
+            self.assertFalse(any(argument.startswith("torch==") for argument in forced[0]))
 
 
 if __name__ == "__main__":

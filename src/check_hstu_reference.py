@@ -167,8 +167,10 @@ def main():
         result["pip_check"] = command([sys.executable, "-m", "pip", "check"])
         import numpy as np
         import torch as torch_module
-        import fbgemm_gpu  # noqa: F401
         torch = torch_module
+        result["runtime"].update({"torch": torch.__version__, "cuda_runtime": torch.version.cuda,
+                                 "torch_file": str(Path(torch.__file__).resolve())})
+        import fbgemm_gpu  # noqa: F401
         device = torch.device(config["device"])
         random.seed(config["seed"])
         np.random.seed(config["seed"])

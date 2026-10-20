@@ -116,6 +116,17 @@ def prepare(action, prefix, report):
         print("No project libraries installed. Review resolved-constraints.txt before install.")
     else:
         validate_report(report, prefix)
+        # PEP 440 can treat a local build as satisfying the public release version.
+        # Replace only FBGEMM explicitly, without reinstalling torch or its dependencies.
+        installed = run([str(python), "-c", "import importlib.metadata as m\n"
+                         "try: print(m.version('fbgemm-gpu'))\n"
+                         "except m.PackageNotFoundError: print('')"], capture_output=True).stdout.strip()
+        expected = json.loads(MANIFEST.read_text())["expected_packages"]["fbgemm-gpu"]
+        if installed and installed != expected:
+            requirement = next(line for line in SPEC.read_text().splitlines()
+                               if line.startswith("fbgemm-gpu @ "))
+            run([str(python), "-m", "pip", "install", "--force-reinstall", "--no-deps",
+                 "--report", str(report / "pip-fbgemm-replace.json"), requirement])
         run([str(python), "-m", "pip", "install", "--report", str(report / "pip-install.json"),
              "-r", str(SPEC), "-c", str(report / "resolved-constraints.txt")])
         run([str(python), "-m", "pip", "check"])
