@@ -1,4 +1,4 @@
-"""Prepare only ML-1M and run one epoch of the pinned official HSTU recipe."""
+"""Prepare ML-1M and run smoke or formal training with the pinned official HSTU."""
 
 import argparse
 from datetime import datetime, timezone
@@ -23,7 +23,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from src.check_hstu_reference import command, verify_upstream
 from src.hstu_public_config import (
-    DATA_FILES, audit_sequences, bindings, sha256, validate_config, verify_data,
+    DATA_FILES, audit_sequences, bindings, compare_reference, epoch_history,
+    sha256, validate_action, verify_data,
 )
 
 URL = 'https://files.grouplens.org/datasets/movielens/ml-1m.zip'
@@ -96,6 +97,7 @@ def train(config, upstream, run_dir, report):
     report['overrides'] = overrides
     (run_dir / 'overrides.gin').write_text('\n'.join(overrides) + '\n')
     (run_dir / 'effective-config.gin').write_text(gin.config_str())
+    (run_dir / 'results.json').write_text(json.dumps(report, indent=2) + '\n')
     os.chdir(run_dir)
     try:
         train_fn(rank=0, world_size=1, master_port=config['master_port'])
@@ -126,14 +128,41 @@ def train(config, upstream, run_dir, report):
     for tag in ('losses/ar_loss', 'eval_epoch/ndcg@10', 'eval_epoch/hr@10'):
         if not scalars.get(tag):
             raise RuntimeError(f'Missing completed training/evaluation evidence: {tag}')
+    history = epoch_history(scalars, config.get('num_epochs', 1))
+    report['epoch_history'] = history
+    (run_dir / 'epoch-metrics.json').write_text(json.dumps(history, indent=2) + '\n')
     checkpoints = sorted(str(path.relative_to(run_dir)) for path in (run_dir / 'ckpts').rglob('*')
                          if path.is_file())
     if not checkpoints:
         raise RuntimeError('Official trainer did not save its final checkpoint')
     report['checkpoints'] = checkpoints
+    expected_epoch = config.get('num_epochs', 1) - 1
+    final_paths = [name for name in checkpoints if name.endswith(f'_ep{expected_epoch}')]
+    if len(final_paths) != 1:
+        raise RuntimeError('Expected exactly one final-epoch checkpoint')
+    checkpoint = torch.load(run_dir / final_paths[0], map_location='cpu', weights_only=True)
+    if checkpoint.get('epoch') != expected_epoch or not all(
+            checkpoint.get(key) for key in ('model_state_dict', 'optimizer_state_dict')):
+        raise RuntimeError('Final checkpoint is missing its epoch or state dictionaries')
+    # Keep the upstream state dictionaries unchanged and link their experiment identity.
+    metadata = {'checkpoint': final_paths[0], 'epoch': expected_epoch,
+                'checkpoint_sha256': sha256(run_dir / final_paths[0]),
+                'config': config, 'git': report['git'],
+                'data_manifest_sha256': report['data_manifest_sha256'],
+                'upstream_revision': spec['revision'], 'runtime': report['runtime'],
+                'metrics': history[-1]}
+    (run_dir / 'checkpoint-metadata.json').write_text(json.dumps(metadata, indent=2) + '\n')
     report['epoch_metrics'] = {key: values[-1]['value'] for key, values in scalars.items()
                                if key.startswith('eval_epoch/')}
     print(f"Epoch metrics: {report['epoch_metrics']}", flush=True)
+    if report['action'] == 'train':
+        comparison = compare_reference(history[-1], report['reference'])
+        report['reference_comparison'] = comparison
+        (run_dir / 'reference-comparison.json').write_text(json.dumps(comparison, indent=2) + '\n')
+        print(f"Reference comparison (final epoch {expected_epoch}): {comparison['status']}", flush=True)
+        for tag, row in comparison['metrics'].items():
+            print(f"  {tag}: actual={row['actual']:.6f}; reference={row['reference']:.4f}; "
+                  f"gap={row['signed_gap']:+.6f}", flush=True)
 
 
 def worker(args, config):
@@ -141,8 +170,10 @@ def worker(args, config):
     run_dir, upstream, directory = args.run_dir, args.upstream_dir, args.data_dir
     spec = json.loads((ROOT / 'configs/hstu-reference-upstream.json').read_text())
     report = {'status': 'RUNNING', 'action': args.action, 'config': config, 'upstream': spec,
-              'scope': 'Official ML-1M data preparation or one-epoch FP32 pipeline gate; not a reproduction score',
+              'scope': ('Official ML-1M 101-epoch FP32 reference experiment; final-epoch comparison'
+                        if args.action == 'train' else 'Official ML-1M preparation or one-epoch FP32 pipeline gate'),
               'runtime': {'python': sys.version, 'platform': platform.platform(), 'executable': sys.executable}}
+    (run_dir / 'results.json').write_text(json.dumps(report, indent=2) + '\n')
     start = time.monotonic()
     try:
         if sys.version_info[:2] != (3, 11) or platform.system() != 'Linux':
@@ -157,6 +188,15 @@ def worker(args, config):
                 raise RuntimeError(f'{name}: expected {expected}, found {actual}')
         report['git'] = {'commit': command(['git', '-C', str(ROOT), 'rev-parse', 'HEAD']),
                          'dirty': bool(command(['git', '-C', str(ROOT), 'status', '--porcelain']))}
+        if args.action == 'train':
+            reference_path = ROOT / 'configs/hstu-ml1m-reference-metrics.json'
+            reference = json.loads(reference_path.read_text())
+            if reference['upstream_revision'] != spec['revision'] or reference['recipe'] != spec['recipe']:
+                raise ValueError('Reference metrics belong to a different source revision/recipe')
+            compare_reference(reference['metrics'], reference)
+            report['reference'] = reference
+            report['reference_sha256'] = sha256(reference_path)
+            (run_dir / 'reference-metrics.json').write_text(json.dumps(reference, indent=2) + '\n')
         sys.path.insert(0, str(upstream))
         if args.action == 'prepare':
             report['data'] = prepare_data(directory, spec, config['seed'])
@@ -184,7 +224,7 @@ def worker(args, config):
 def main():
     """Launch a logged child so upstream relative paths never touch its checkout."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('prepare', 'smoke'))
+    parser.add_argument('action', choices=('prepare', 'smoke', 'train'))
     parser.add_argument('--config', type=Path, default=ROOT / 'configs/hstu-ml1m-smoke-server.json')
     parser.add_argument('--upstream-dir', type=Path,
                         default=Path.home() / 'upstream/generative-recommenders-reference')
@@ -193,7 +233,7 @@ def main():
     parser.add_argument('--run-dir', type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
-    validate_config(config)
+    validate_action(config, args.action)
     for key in ('config', 'upstream_dir', 'data_dir'):
         setattr(args, key, getattr(args, key).expanduser().resolve())
     if args.worker:

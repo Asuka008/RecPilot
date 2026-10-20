@@ -3,6 +3,7 @@
 import csv
 import hashlib
 import json
+import math
 from pathlib import Path
 
 
@@ -24,10 +25,10 @@ def sha256(path):
 
 
 def validate_config(config):
-    """Keep the first public-data gate small and single-device."""
+    """Validate single-device smoke and fixed-recipe training configurations."""
     expected = {'seed', 'batch_size', 'eval_batch_size', 'num_workers',
                 'prefetch_factor', 'master_port', 'output_dir'}
-    if set(config) != expected:
+    if not expected <= set(config) or set(config) - expected - {'num_epochs'}:
         raise ValueError(f'Expected configuration keys: {sorted(expected)}')
     for key in expected - {'output_dir'}:
         if type(config[key]) is not int or config[key] < (0 if key == 'seed' else 1):
@@ -36,13 +37,26 @@ def validate_config(config):
         raise ValueError('Use a valid port and a conservative batch size <= 128')
     if not isinstance(config['output_dir'], str) or not config['output_dir']:
         raise ValueError('output_dir must be a nonempty path')
+    epochs = config.get('num_epochs', 1)
+    if type(epochs) is not int or epochs not in (1, 101):
+        raise ValueError('num_epochs must be 1 for smoke or 101 for the official recipe')
+
+
+def validate_action(config, action):
+    """Prevent a smoke command from starting formal training accidentally."""
+    validate_config(config)
+    epochs = config.get('num_epochs', 1)
+    if action == 'smoke' and epochs != 1:
+        raise ValueError('smoke requires one epoch; use train with the formal configuration')
+    if action == 'train' and (epochs, config['batch_size'], config['eval_batch_size']) != (101, 128, 128):
+        raise ValueError('train requires the official 101 epochs and train/eval batch 128')
 
 
 def bindings(config):
     """Override runtime settings only; retain the pinned architecture and objective."""
     validate_config(config)
     return [
-        'train_fn.num_epochs = 1',
+        f"train_fn.num_epochs = {config.get('num_epochs', 1)}",
         f"train_fn.local_batch_size = {config['batch_size']}",
         f"train_fn.eval_batch_size = {config['eval_batch_size']}",
         f"train_fn.random_seed = {config['seed']}",
@@ -51,6 +65,47 @@ def bindings(config):
         f"create_data_loader.num_workers = {config['num_workers']}",
         f"create_data_loader.prefetch_factor = {config['prefetch_factor']}",
     ]
+
+
+REFERENCE_TAGS = ('hr@10', 'ndcg@10', 'hr@50', 'ndcg@50', 'hr@200', 'ndcg@200')
+
+
+def epoch_history(scalars, num_epochs):
+    """Require exactly one complete, finite evaluation at each expected epoch."""
+    history = [{'epoch': epoch} for epoch in range(num_epochs)]
+    expected_steps = set(range(num_epochs))
+    for tag in REFERENCE_TAGS:
+        events = scalars.get(f'eval_epoch/{tag}', [])
+        if len(events) != num_epochs or {event['step'] for event in events} != expected_steps:
+            raise ValueError(f'Missing or duplicate epoch evaluation: {tag}')
+        for event in events:
+            value = event['value']
+            if not math.isfinite(value) or not 0 <= value <= 1:
+                raise ValueError(f'Invalid ranking metric: {tag}')
+            history[event['step']][tag] = value
+    return history
+
+
+def compare_reference(final_metrics, reference):
+    """Compare the preselected final epoch; never select an epoch by test scores."""
+    tolerance = reference['absolute_tolerance']
+    if not isinstance(tolerance, (int, float)) or not 0 < tolerance < 1:
+        raise ValueError('Invalid reference comparison tolerance')
+    if set(reference['metrics']) != set(REFERENCE_TAGS):
+        raise ValueError('Expected all six official reference metrics')
+    comparisons = {}
+    for tag in REFERENCE_TAGS:
+        actual, target = final_metrics[tag], reference['metrics'][tag]
+        if not all(math.isfinite(value) and 0 <= value <= 1 for value in (actual, target)):
+            raise ValueError(f'Invalid reference or final metric: {tag}')
+        gap = actual - target
+        comparisons[tag] = {'actual': actual, 'reference': target, 'signed_gap': gap,
+                            'within_tolerance': abs(gap) <= tolerance}
+    return {'status': ('WITHIN_TOLERANCE' if all(row['within_tolerance'] for row in comparisons.values())
+                       else 'REVIEW_REQUIRED'),
+            'selection': 'final epoch 100, fixed before execution',
+            'absolute_tolerance': tolerance, 'metrics': comparisons,
+            'interpretation': 'Engineering comparison band, not a statistical confidence interval or proof of reproduction'}
 
 
 def audit_sequences(path):

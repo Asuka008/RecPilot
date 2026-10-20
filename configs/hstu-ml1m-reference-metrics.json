@@ -1,0 +1,19 @@
+{
+  "dataset": "ml-1m",
+  "model": "HSTU",
+  "upstream_revision": "10c4950343b98bacec9ffd5b8cd879f811fe2326",
+  "source_file": "README.md",
+  "source_url": "https://github.com/meta-recsys/generative-recommenders/blob/10c4950343b98bacec9ffd5b8cd879f811fe2326/README.md",
+  "source_verified_as_of": "2024-04-15",
+  "recipe": "configs/ml-1m/hstu-sampled-softmax-n128-final.gin",
+  "absolute_tolerance": 0.02,
+  "tolerance_rationale": "A predeclared engineering review band of 0.02 absolute per metric; not published variability or statistical equivalence. Upstream does not specify the table's checkpoint-selection rule here.",
+  "metrics": {
+    "hr@10": 0.3097,
+    "ndcg@10": 0.1720,
+    "hr@50": 0.5754,
+    "ndcg@50": 0.2307,
+    "hr@200": 0.7716,
+    "ndcg@200": 0.2606
+  }
+}

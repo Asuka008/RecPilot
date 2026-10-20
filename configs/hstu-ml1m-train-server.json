@@ -1,0 +1,10 @@
+{
+  "seed": 42,
+  "batch_size": 128,
+  "eval_batch_size": 128,
+  "num_epochs": 101,
+  "num_workers": 2,
+  "prefetch_factor": 2,
+  "master_port": 12367,
+  "output_dir": "runs/hstu-ml1m-reference"
+}
