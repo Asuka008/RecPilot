@@ -1,0 +1,25 @@
+{
+  "device": "cuda:0",
+  "seed": 42,
+  "model": {
+    "num_items": 24,
+    "sequence_length": 6,
+    "embedding_dim": 16,
+    "attention_dim": 8,
+    "linear_dim": 8,
+    "num_heads": 2,
+    "num_blocks": 2,
+    "dropout": 0.0
+  },
+  "sequences": [[1, 2, 3, 4, 5], [6, 7, 8, 9], [10, 11, 12, 13, 14, 15], [16, 17, 18]],
+  "num_negatives": 8,
+  "temperature": 0.2,
+  "steps": 80,
+  "learning_rate": 0.01,
+  "weight_decay": 0.0,
+  "minimum_loss_reduction": 0.2,
+  "log_every": 20,
+  "resume_atol": 0.0,
+  "resume_rtol": 0.0,
+  "output_dir": "runs/hstu-toy-fit"
+}
