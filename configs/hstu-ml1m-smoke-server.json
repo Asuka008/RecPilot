@@ -1,0 +1,9 @@
+{
+  "seed": 42,
+  "batch_size": 32,
+  "eval_batch_size": 32,
+  "num_workers": 2,
+  "prefetch_factor": 2,
+  "master_port": 12367,
+  "output_dir": "runs/hstu-ml1m-smoke"
+}
