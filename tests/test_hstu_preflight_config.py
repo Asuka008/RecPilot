@@ -4,11 +4,12 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from scripts.prepare_hstu_reference import ROOT, outside_project, validate_report
+from scripts.prepare_hstu_reference import ROOT, outside_project, source, validate_report
 from src.check_hstu_reference import validate_config, verify_upstream
 
 
@@ -77,6 +78,34 @@ class PreflightConfigTest(unittest.TestCase):
             (report / "resolved-constraints.txt").write_text("example==2.0\n")
             with self.assertRaisesRegex(RuntimeError, "constraints"):
                 validate_report(report, prefix)
+
+    def test_source_resumes_interrupted_checkout_without_resetting_edits(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            origin, checkout = root / "origin", root / "checkout"
+
+            def git(*args):
+                return subprocess.check_output(["git", *map(str, args)], text=True,
+                                               stderr=subprocess.DEVNULL).strip()
+
+            git("init", "-q", origin)
+            (origin / "model.py").write_text("reference source\n")
+            git("-C", origin, "add", "model.py")
+            git("-C", origin, "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+                "-c", "commit.gpgsign=false", "commit", "-qm", "Reference")
+            revision = git("-C", origin, "rev-parse", "HEAD")
+            git("clone", "--no-checkout", origin, checkout)
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps({"repository": str(origin), "revision": revision,
+                "files_sha256": {"model.py": hashlib.sha256((origin / "model.py").read_bytes()).hexdigest()}}))
+            with patch("scripts.prepare_hstu_reference.MANIFEST", manifest):
+                source(checkout)
+                self.assertEqual((checkout / "model.py").read_text(), "reference source\n")
+                self.assertEqual(git("-C", checkout, "rev-parse", "HEAD"), revision)
+                (checkout / "model.py").write_text("user changes\n")
+                with self.assertRaisesRegex(RuntimeError, "not overwriting"):
+                    source(checkout)
+                self.assertEqual((checkout / "model.py").read_text(), "user changes\n")
 
 
 if __name__ == "__main__":

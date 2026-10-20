@@ -132,6 +132,14 @@ def source(path):
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         run(["git", "clone", "--filter=blob:none", "--no-checkout", spec["repository"], str(path)])
+    # A clone can succeed while checkout fails, for example on shared storage.
+    # Resume only when no index or user files exist; never reset existing work.
+    if ((path / ".git").is_dir() and not (path / ".git/index").exists()
+            and not any(entry.name != ".git" for entry in path.iterdir())):
+        remote = run(["git", "-C", str(path), "remote", "get-url", "origin"],
+                     capture_output=True).stdout.strip()
+        if remote != spec["repository"]:
+            raise RuntimeError("Uninitialized checkout has a different origin; not modifying it")
         run(["git", "-C", str(path), "checkout", "--detach", spec["revision"]])
     revision = run(["git", "-C", str(path), "rev-parse", "HEAD"], capture_output=True).stdout.strip()
     dirty = run(["git", "-C", str(path), "status", "--porcelain", "--untracked-files=no"],
@@ -152,6 +160,8 @@ def main():
     parser.add_argument("--report-dir", type=Path, default=ROOT / "runs/hstu-reference-setup")
     parser.add_argument("--upstream-dir", type=Path, default=Path.home() / "upstream/generative-recommenders-reference")
     args = parser.parse_args()
+    if args.action != "inspect" and sys.version_info[:2] != (3, 11):
+        raise RuntimeError("Activate the project's Python 3.11 baseline environment before setup")
     if args.action == "inspect":
         inspect()
     elif args.action == "source":
