@@ -1,7 +1,7 @@
 # 12：首个 MicroLens 全量 HSTU 训练候选
 
 日期：2026-10-21。**33 个服务器 CPU 测试、三轮短训练及资源审核已通过；
-本页是下一次服务器训练的固定起点，尚无全量 HSTU 结果。**
+首轮全量 30 轮训练也已回传 PASS。下一步读取详细报告并评估冻结模型的测试集。**
 
 ## 为什么可以进入全量训练
 
@@ -92,5 +92,59 @@ python -m src.run_hstu_microlens train --config configs/hstu-microlens-train-ser
 因为入口会核对 Git、源码哈希、配置、数据与运行环境。合成 CPU 恢复一致性测试
 已通过；真实数据的独立中断/恢复仍无回传记录。
 
-**本次命令不会评估测试集。** 等验证分析和设置冻结后，再对选定的 best.pt
-显式执行测试。全量结果、架构收益、泛化改进及性能结论均待服务器实验返回。
+**训练命令不会评估测试集。** 首轮设置现已按下方记录冻结；全量测试、跨种子
+稳定性和性能结论仍需分别验证。
+
+## 首轮全量训练通过记录与测试配置冻结
+
+用户回传 30 个完整 epoch 和 `MicroLens HSTU train: PASS`，结果路径：
+`runs/hstu-microlens/20261022T023420952080Z/results.json`。
+
+| 轮次 | 训练损失 | 固定训练 probe 损失 | 验证 NDCG@10 |
+|---|---:|---:|---:|
+| 1 | 9.077149 | 8.698148 | 0.019292 |
+| 10 | 8.234203 | 8.267822 | 0.036570 |
+| 28（日志中最佳） | 8.134221 | 8.222760 | 0.037724 |
+| 30 | 8.120724 | 8.200473 | 0.037618 |
+
+比固定 ItemCF 的验证 NDCG@10=0.024494992910568 约增加 0.013229，
+相对约 +54.0%，这里使用日志六位小数，应以报告中的未舍入结果为最终记录。
+训练损失整体下降，后期验证指标有波动；不要求每轮单调，也不因第 30 轮略低
+就改选择规则。按预先定义的验证规则使用 best.pt，而不是最后一轮 last.pt。
+单次结果不能隔离全部架构因素，也不能证明统计显著、跨种子稳定或线上收益。
+
+当前冻结首轮配置、seed=42、30 轮预算与 NDCG@10 验证选择规则，开展一次
+固定的基线测试评估。不继续增加轮次或看测试结果选参数。后续诊断、简单神经
+对照和改进应作为独立实验，用验证数据决定。
+
+先读取精确选择、全量验证切片、检查及资源摘要：
+
+```bash
+python - <<'PY'
+import json
+from pathlib import Path
+p = Path("runs/hstu-microlens/20261022T023420952080Z/results.json")
+r = json.loads(p.read_text())
+assert r["status"] == "PASS" and len(r["history"]) == 30
+best = next(row for row in r["history"] if row["epoch"] == r["selection"]["best_epoch"])
+summary = {k: r.get(k) for k in ("status", "data", "selection", "checks", "checksums_unchanged", "elapsed_seconds")}
+summary["best_validation"] = best["validation"]
+summary["git"] = r["provenance"]["git"]
+summary["data_sha256"] = r["provenance"]["data_sha256"]
+summary["runtime"] = {k: r["runtime"].get(k) for k in ("torch", "cuda_runtime", "device", "gpu", "gpu_total_memory_bytes")}
+summary["memory_gib"] = {k: round(v / 1024**3, 3) for k, v in r.get("memory_bytes", {}).items()}
+print(json.dumps(summary, indent=2))
+PY
+```
+
+然后执行测试评估；不重跑训练、不更改配置、不需要更新环境：
+
+```bash
+python -m src.run_hstu_microlens evaluate --config configs/hstu-microlens-train-server.json --checkpoint runs/hstu-microlens/20261022T023420952080Z/best.pt --split test
+```
+
+预期输出 split=test、all 组 50,000 用户的 Recall/NDCG@10/20，以及频次与
+历史长度分组，最后 `MicroLens HSTU evaluate: PASS` 和新 results.json 路径。
+评估会核对配置、数据身份和源码身份；训练未被本次说明更新修改。
+回传上述摘要、测试指标与结果路径后，再与固定 ItemCF 测试分数比较和分析切片。
+全量训练的实际硬件/耗时/显存和精确选择字段尚未回传，不能套用 smoke 数字。

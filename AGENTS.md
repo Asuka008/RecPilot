@@ -153,7 +153,7 @@ input. The sequential Dataset and DataLoader contract passed its eight server
 CPU tests on 2026-10-18. All three processed-data checksums also matched the Mac
 on that date. Shared evaluation and simple baselines subsequently passed server verification;
 the MicroLens HSTU integration tests and three-epoch smoke run subsequently
-passed on the server; the resource report was reviewed and full-data training is next.
+passed on the server; the first 30-epoch full-data run also returned PASS.
 
 The SASRec Dataset and DataLoader contract has been fully implemented and its
 eight focused CPU unit tests passed locally on 2026-10-05 and on the server
@@ -161,7 +161,7 @@ at commit a129baa on 2026-10-18. The tests use synthetic records and do not
 verify the transferred MicroLens files or CUDA behavior. Pure-ID HSTU and learned ID embeddings have since been implemented and verified
 with synthetic tasks and the separate official ML-1M experiment. MicroLens HSTU
 training/evaluation passed its 33 focused server CPU tests and three-epoch
-real-data smoke run; full-data training remains pending. No title
+real-data smoke run; its first full-data 30-epoch run subsequently returned PASS. No title
 embedding table or content fusion has been implemented.
 
 ## Locally verified data findings (2026-10-16)
@@ -292,16 +292,24 @@ server run artifacts have not been independently inspected from this Mac.
   outputs matched exactly at epoch 3, probe loss decreased, and processed-data
   checksums were unchanged. These memory figures exclude some external GPU
   allocations and do not establish full-data memory or serving performance.
-  Full-data training remains pending; Git/data-hash report fields were not shown.
+  Git/data-hash smoke-report fields were not shown.
+- The user subsequently reported a complete 30-epoch full-data run and
+  `MicroLens HSTU train: PASS`, saved at
+  `runs/hstu-microlens/20261022T023420952080Z/results.json`.
+  The printed validation NDCG@10 peaks at epoch 28, 0.037724, compared with
+  fixed ItemCF validation NDCG@10=0.024494992910568 (approximately +54.0%
+  relative, from rounded log output). Epoch 30 scores 0.037618; use best.pt,
+  not last.pt, for the frozen first-candidate test evaluation. Training loss
+  goes from 9.077149 to 8.120724. Full-report exact selection, all four metrics,
+  slices, actual hardware, memory, provenance and elapsed time await retrieval.
+  No MicroLens HSTU test result, multi-seed robustness or online lift is claimed.
 
-Next action: run the first full-data training candidate using
-`configs/hstu-microlens-train-server.json`: fresh initialization, seed 42,
-50,000 training users and validation users, 30 epochs, train/eval batch 32/64,
-FP32, position-only bias and full-catalog CE. Keep the smoke model and optimizer
-settings unchanged. Select earliest best validation NDCG@10; do not automatically
-evaluate test. See `docs/learning-12-microlens-full-training.md`. This is the first
-candidate, not an established optimal configuration. Inspect allocation again
-before starting and keep code/config/runtime unchanged during training.
-Code/data/runtime identities must match for epoch-boundary continuation. Keep
-original `last.pt` and sibling `best.pt` together. Full-data quality and measured
-resource usage remain awaiting server results.
+Next action: freeze the existing first-candidate config and evaluate its
+validation-selected `best.pt` on test with `src.run_hstu_microlens evaluate`.
+Keep `configs/hstu-microlens-train-server.json`, seed 42, 30-epoch budget and
+validation NDCG@10 selection unchanged. Also retrieve the completed training
+report selection, validation slices, checks, provenance and resource fields.
+See `docs/learning-12-microlens-full-training.md` for exact commands. Do not
+retrain, extend epochs, add features or select settings based on test scores.
+Further improvement experiments require validation diagnosis and a separate
+versioned experiment. Real-data interrupted-run continuation remains unreported.
