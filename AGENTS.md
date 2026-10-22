@@ -403,8 +403,18 @@ not infer that each short-history user should get Mean or that order alone
 causes the gain. Retain HSTU; lower-frequency target performance remains a
 specific weakness despite overall and history-length wins.
 
-Next action: verify paired report identities using teaching note 17 and obtain
-12 CPU test completion. Mean configuration is frozen and best epoch is 19;
-a single fixed test evaluation can then complete the control record. Do not
-retune on test. No retraining is needed. Keep raw/corrected HSTU frozen. Text
-fusion remains an optional subsequent experiment, not a proven remedy.
+A frozen mean-test admission wrapper is now implemented in
+`scripts/evaluate_mean_control.py`, outside checkpoint-bound src/controls.
+It verifies paired configurations, full validation history, shared/data/user
+identities, current source/data hashes, earliest validation winner and best.pt
+hash before invoking the existing test evaluator. It exposes no score or epoch
+selection overrides; --check-only avoids model execution. Six standard-library
+corruption/admission tests passed locally, along with syntax and CLI checks.
+No model, training config, scoring routine or existing source identity changed.
+
+Next action: run the 18 focused server tests (the previous 12 plus six admission
+checks), inspect GPU allocation, then execute the frozen Mean test wrapper as
+shown in teaching note 18. Mean config remains frozen, selected epoch is 19.
+Actual preflight and test evaluation await server output. No retraining is needed.
+Keep raw/corrected HSTU frozen and do not retune on test. Text fusion remains a
+subsequent optional experiment, not a proven remedy.

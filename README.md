@@ -371,7 +371,10 @@ in controls/, leaving the historical shared src identity unchanged.
 
 HSTU wins in all four validation history-length groups, with larger relative gains
 for longer histories. Mean still wins in the two observed lower-frequency target groups.
-Next, verify paired report identities and complete one frozen Mean test evaluation;
+The frozen Mean test wrapper verifies paired artifacts before calling the existing
+evaluator; see [note 18](docs/learning-18-frozen-mean-test.md). Six admission tests
+passed locally; actual preflight and test evaluation await the server. Next, run
+the 18 focused tests and complete one frozen Mean test evaluation;
 full training does not need to be repeated.
 
 Three server smoke epochs returned PASS (validation NDCG@10 0.000836 to

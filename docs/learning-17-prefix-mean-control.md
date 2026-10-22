@@ -307,3 +307,7 @@ python -m controls.run_mean_pooling evaluate --config configs/mean-pooling-train
 
 测试结果只用于报告，不能再用来选择融合权重、编码器或训练轮数。
 标题语义仍是下一项候选实验；不把当前分组结果当作标题必然有效的证据。
+
+
+冻结测试现在可使用[笔记 18](learning-18-frozen-mean-test.md)的配对预检入口，
+它自动完成上述身份核对，再调用同一个评估器；避免手工误选 last.pt。
