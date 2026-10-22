@@ -148,7 +148,8 @@ python -m src.run_hstu_microlens evaluate --config configs/hstu-microlens-train-
 历史长度分组，最后 `MicroLens HSTU evaluate: PASS` 和新 results.json 路径。
 评估会核对配置、数据身份和源码身份；训练未被本次说明更新修改。
 回传上述摘要、测试指标与结果路径后，再与固定 ItemCF 测试分数比较和分析切片。
-全量训练的实际硬件/耗时/显存和精确选择字段尚未回传，不能套用 smoke 数字。
+后续已回传正式训练设备 A100 MIG 2g.20gb、1196.934 秒、allocated/reserved
+0.16010/0.22656 GiB，以及精确 epoch-28 选择字段，见笔记 14；不套用 smoke 数字。
 
 
 ## 冻结测试已通过

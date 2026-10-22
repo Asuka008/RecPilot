@@ -1,0 +1,9 @@
+{
+  "training_config": "configs/hstu-microlens-train-server.json",
+  "training_run": "runs/hstu-microlens/20261022T023420952080Z",
+  "output_dir": "runs/hstu-score-audit",
+  "split": "val",
+  "alphas": [0.0, 0.25, 0.5, 1.0],
+  "smoothing": 1.0,
+  "anchor_atol": 1e-12
+}

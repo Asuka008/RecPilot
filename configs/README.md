@@ -33,3 +33,11 @@ an intentional partial run without changing the configured training horizon.
 Evaluate explicitly with `evaluate --config CONFIG --checkpoint RUN/best.pt
 --split val`. Full configs require all users, and smoke configs reject test
 evaluation. See `docs/learning-11-microlens-hstu.md` for the server workflow.
+
+
+`hstu-score-audit-server.json` references the completed full-data run and fixes
+validation-only alpha=[0,0.25,0.5,1], smoothing=1. It applies frequency correction
+using retained positive training labels, keeps all evaluation groups unchanged,
+and requires the zero-correction anchor to reproduce the frozen validation run.
+Run `python scripts/diagnose_hstu_scores.py --config configs/hstu-score-audit-server.json`.
+This is an unverified diagnostic hypothesis; do not use test data to select alpha.

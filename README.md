@@ -10,7 +10,8 @@ MovieLens-1M, with final metrics close to the upstream reference. MicroLens
 Popularity and ItemCF results are available. The MicroLens HSTU training and
 evaluation integration passed 33 focused server tests and a three-epoch real-data
 smoke run. The first full-data HSTU candidate completed training and frozen
-test evaluation; validation diagnostics are next.
+test evaluation. Validation slices confirm a low-frequency regression; a frozen
+score-correction diagnostic is implemented and awaits server verification.
 
 ## Verified progress
 
@@ -64,8 +65,13 @@ NDCG@10 is **0.037724 at epoch 28**, compared with ItemCF **0.024495**
 (approximately +54.0% relative, using rounded log values). The final epoch is
 0.037618; evaluation must use validation-selected `best.pt`.
 
-This is one candidate and one seed. Exact artifact selection, remaining ranking
-metrics, validation slices and full-run resource fields are awaiting retrieval.
+This is one candidate and one seed. The returned artifact summary confirms
+best epoch 28, validation NDCG@10=0.03772422803068947 and Recall@20=0.10176.
+Validation Recall@20 is 0 for frequency 1-5 and 0.01010315 for frequency 6-20,
+versus ItemCF 0.04790749 and 0.06035440. The 21+ group reaches 0.21303345,
+versus ItemCF 0.09257406. Both reports' data hashes and group counts match.
+Full training took 1196.934s on A100 MIG 2g.20gb with peak PyTorch allocated/
+reserved memory 0.16010/0.22656 GiB. Remaining validation metrics are not yet shown.
 The frozen test evaluation passed for all 50,000 users: Recall@10=0.04882,
 NDCG@10=0.02472889109808947, Recall@20=0.07238,
 NDCG@20=0.030686079403136588. Relative to fixed ItemCF, these increase by
@@ -74,7 +80,7 @@ This is an offline result; no online gain or multi-seed robustness is establishe
 
 Test targets with training-history frequency 0 or 1-5 have zero Top-20 hits
 (2,226 and 11,557 users). Of 3,619 Top-20 hits, 3,466 belong to frequency 21+.
-Before choosing an improvement, compare **validation** slices against ItemCF.
+The same low/mid-frequency regression is now confirmed on **validation** against ItemCF.
 A local data-only audit also distinguishes history occurrences from positive
 shifted labels: 482 history-observed items have no retained positive target at
 L=32. This alone cannot explain all weak tail results. See
@@ -335,9 +341,20 @@ runs/             Generated experiment artifacts, ignored by Git
 The 33 focused CPU tests (including synthetic epoch-boundary continuation) and
 real-data smoke run passed on the server. The resource report has been reviewed.
 The first full-data 30-epoch candidate and frozen test evaluation also passed.
-Retrieve its validation slices and resource/provenance summary, compare against
-ItemCF on validation, and audit supervision before choosing a separate improvement
-experiment. Keep the first test result fixed. Real-data interrupted-run continuation has not been separately
+Validation slices and training resources have been reviewed. Run the new
+validation-only frozen score audit before choosing a model change:
+
+```bash
+python -m unittest tests.test_score_audit tests.test_score_audit_server -v
+python scripts/diagnose_hstu_scores.py --config configs/hstu-score-audit-server.json
+```
+
+It compares four training-frequency correction strengths, requires alpha=0 to
+reproduce the saved validation run, and records recommendation coverage and
+frequency shares. Seven tiny tests passed locally; neural end-to-end and actual
+server audit results are pending. No model weights or scoring code under src/
+were changed. Keep the first test result fixed. See
+[diagnosis note 14](docs/learning-14-validation-score-diagnosis.md). Real-data interrupted-run continuation has not been separately
 reported.
 Compare against ItemCF and diagnose results by history length and target-item
 training frequency, including zero-occurrence targets.

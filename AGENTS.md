@@ -300,8 +300,14 @@ server run artifacts have not been independently inspected from this Mac.
   fixed ItemCF validation NDCG@10=0.024494992910568 (approximately +54.0%
   relative, from rounded log output). Epoch 30 scores 0.037618; use best.pt,
   not last.pt, for the frozen first-candidate test evaluation. Training loss
-  goes from 9.077149 to 8.120724. Full-report exact selection, all four metrics,
-  slices, actual hardware, memory, provenance and elapsed time await retrieval.
+  goes from 9.077149 to 8.120724. The user subsequently returned exact epoch-28
+  selection NDCG@10=0.03772422803068947, validation Recall@20=0.10176 and
+  matching HSTU/ItemCF data hashes and group counts. The validation 1-5 group
+  Recall@20 is 0 vs ItemCF 0.04790749; 6-20 is 0.01010315 vs 0.06035440;
+  21+ is 0.21303345 vs 0.09257406. The regression is established on validation,
+  not just test. Full-training runtime was A100 MIG 2g.20gb, 1196.934s,
+  peak allocated/reserved 171903488/243269632 bytes (0.16010/0.22656 GiB).
+  Remaining exact validation metrics and full provenance fields are not shown.
 - The user returned frozen best.pt test evaluation PASS at
   `runs/hstu-microlens/20261022T030714112850Z/results.json`, all 50,000 users.
   Recall@10/20=0.04882/0.07238; NDCG@10/20=
@@ -320,12 +326,17 @@ server run artifacts have not been independently inspected from this Mac.
   synthetic tests and full local data audit passed; server replay is pending.
   See `scripts/audit_hstu_supervision.py` and teaching note 13.
 
-Next action: retrieve the selected training checkpoint's validation slices,
-full-run resources/provenance, and compare validation frequency groups with the
-existing ItemCF validation report. Verify matching data hashes first. Reproduce
-the positive-supervision audit on the server if needed. Keep the first model,
-config and test result frozen. Use validation diagnosis to select a separate
-improvement experiment; masked mean pooling remains a proposed neural control,
-not yet implemented. Do not immediately add text, reweight losses or extend
-training because of test slices. See `docs/learning-13-microlens-baseline-results.md`.
-Real-data interrupted-run continuation and multi-seed robustness remain unreported.
+Next action: server-verify the new frozen-checkpoint validation score audit,
+`scripts/diagnose_hstu_scores.py`, with `configs/hstu-score-audit-server.json`.
+It compares alpha=[0,0.25,0.5,1], smoothing=1, cosine minus
+training_temperature*alpha*log(retained_positive_count+smoothing), and records
+ranking metrics plus recommendation coverage/frequency shares. Correction counts
+come only from retained training labels; evaluation groups still use full-history
+counts. Alpha=0 must reproduce every saved validation metric/group within 1e-12.
+Choose by overall validation NDCG@10, ties smaller alpha. No test switch, training
+or checkpoint mutation is allowed. This is a diagnostic hypothesis, not a proven
+fix. Seven tiny NumPy/pure-Python tests and syntax checks passed locally; the
+new server CPU end-to-end test and actual validation audit remain pending.
+See `docs/learning-14-validation-score-diagnosis.md`. Keep the first model/config/
+test record frozen. Do not select alpha or future improvements from test scores.
+Masked mean pooling and content changes remain unimplemented hypotheses.
