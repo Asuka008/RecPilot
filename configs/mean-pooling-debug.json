@@ -1,0 +1,33 @@
+{
+  "mode": "smoke",
+  "data_dir": "data/processed",
+  "output_dir": "runs/mean-pooling-debug",
+  "device": "cpu",
+  "seed": 42,
+  "model": {
+    "sequence_length": 8,
+    "embedding_dim": 8,
+    "attention_dim": 4,
+    "linear_dim": 4,
+    "num_heads": 1,
+    "num_blocks": 1,
+    "dropout": 0.1
+  },
+  "epochs": 2,
+  "batch_size": 4,
+  "eval_batch_size": 4,
+  "num_workers": 0,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "temperature": 0.2,
+  "gradient_clip_norm": 1.0,
+  "ks": [
+    10,
+    20
+  ],
+  "selection_metric": "NDCG@10",
+  "train_users": 16,
+  "eval_users": 16,
+  "control": "causal-prefix-mean-v1",
+  "reference_config": "configs/hstu-microlens-debug.json"
+}

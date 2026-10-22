@@ -12,7 +12,8 @@ evaluation integration passed 33 focused server tests and a three-epoch real-dat
 smoke run. The first full-data HSTU candidate completed training and frozen
 test evaluation. A validation-only score correction selected alpha=0.5 and
 improved validation NDCG@10 by 6.95%. Its fixed test evaluation passed with
-NDCG@10 +9.62% over raw HSTU; low-frequency matching remains unresolved.
+NDCG@10 +9.62% over raw HSTU. A causal prefix-mean neural control is implemented
+and awaits server tests and smoke training; low-frequency matching remains unresolved.
 
 ## Verified progress
 
@@ -30,7 +31,8 @@ passed, and the first full-data training and test evaluations returned PASS.
 | Pure-ID HSTU training components | Four-user synthetic fit reduced fixed-task loss by 99.3%; checkpoint output, RNG, and next-step continuation checks passed |
 | Official MovieLens-1M recipe | Batch 32/128 smoke checks and batch 128, 101-epoch training completed on the server |
 | MicroLens HSTU baseline | Training and frozen test evaluation passed; test Recall@10=0.04882, NDCG@10=0.024729; validation-selected checkpoint from the first 30-epoch candidate |
-| Feature improvements and recommendation service | Planned; no measured results yet |
+| Prefix-mean neural control | Implemented with matched settings, shared scoring/objective and isolated source identity; 5 config tests passed locally, model tests and server smoke pending |
+| Content features and recommendation service | Planned; no measured results yet |
 
 The portable implementation is in [src/models/hstu.py](src/models/hstu.py) and
 [src/models/id_hstu.py](src/models/id_hstu.py). Block comparisons and synthetic
@@ -343,6 +345,7 @@ must be transferred or managed separately.
 configs/          Experiment settings and pinned reference manifests
 src/data/         Sequential Dataset and DataLoader
 src/models/       Portable dense HSTU block and pure-ID stack
+controls/         Isolated prefix-mean neural control and matched experiment runner
 src/preprocess.py MicroLens preprocessing
 src/evaluation.py Shared full-catalog ranking metrics
 src/baselines.py  Popularity and sparse cosine ItemCF
@@ -361,12 +364,22 @@ The 33 focused CPU tests (including synthetic epoch-boundary continuation) and
 real-data smoke run passed on the server. The resource report has been reviewed.
 The first full-data 30-epoch candidate and frozen test evaluation also passed.
 The validation-selected alpha=0.5 recipe also passed its fixed test evaluation.
-Keep both raw and corrected results frozen. The proposed next diagnostic is a
-masked history mean-pooling neural control with the same embeddings, scoring,
-objective and training budget, compared first without score correction.
-It is not yet implemented. Establish its causal-prefix/padding/checkpoint
-contracts and server smoke gate before full-data validation. See
-[results and control plan 16](docs/learning-16-corrected-test-results.md).
+Keep both raw and corrected results frozen. The causal prefix-mean control is now implemented with matched configuration,
+initial ID lookup, candidate scoring, objective and training budget. Each training
+position uses only its visible prefix; no score correction is applied. It lives
+in controls/, leaving the historical shared src identity unchanged.
+
+Run the next gate on the server:
+
+```bash
+python -m unittest tests.test_mean_config tests.test_mean_pooling tests.test_mean_runner -v
+python -m controls.run_mean_pooling train --config configs/mean-pooling-smoke-server.json
+```
+
+Expect 12 CPU tests and three CUDA smoke epochs. Five configuration tests and
+syntax checks passed locally; neural tests, short training, quality and performance
+remain pending. Review the smoke report before full-data training. See
+[prefix-mean note 17](docs/learning-17-prefix-mean-control.md).
 Real-data interrupted training continuation and multi-seed robustness remain
 unreported. Corrected-test resource fields have not yet been returned.
 

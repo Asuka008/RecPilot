@@ -48,3 +48,13 @@ an output directory only. Its evaluator verifies the saved validation winner and
 runs that one correction recipe on test; it rejects alpha overrides, failed
 validation status, or changed scoring/model/checkpoint/data identities.
 See `docs/learning-15-selected-score-test.md` for the server commands.
+
+
+Mean-control configs (`mean-pooling-debug.json`, `mean-pooling-smoke-server.json`,
+`mean-pooling-train-server.json`) name the matching HSTU reference config. Every
+original experiment field except output_dir must match; unknown fields or alpha
+corrections are rejected. The model fields specify the frozen reference
+initializer, not attention layers in the mean control. The only trainable tensor
+is the shared ID table. Start with the three-epoch server smoke, then review the
+full-data 30-epoch candidate. Both use raw cosine scoring and validation NDCG@10
+selection; see teaching note 17. Run with `python -m controls.run_mean_pooling`.

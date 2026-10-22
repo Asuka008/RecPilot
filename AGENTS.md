@@ -349,14 +349,26 @@ server run artifacts have not been independently inspected from this Mac.
   The actual corrected-test runtime/memory fields and separate CPU test logs
   have not been returned; the full real-data test entry point did return PASS.
 
-Next action: preserve raw/corrected baselines and plan a masked history mean-
-pooling neural control using the same embeddings/scoring/objective/data and
-training budget. It is not yet implemented. Primary comparison must use both
-uncorrected models, so encoder and scoring effects are not conflated. Training
-means must use each visible prefix, never the complete input at every position.
-Require prefix/causal/padding/finite-gradient/checkpoint checks and server smoke
-before full-data validation. Preserve historical checkpoint source identities.
-See `docs/learning-16-corrected-test-results.md` for results and constraints.
-Do not tune alpha or choose later settings on test; multi-seed robustness and
-real-data interrupted training continuation remain unreported. Content fusion
-remains an unimplemented hypothesis.
+- The causal prefix-mean control is now implemented in `controls/mean_pooling.py`,
+  with `controls/run_mean_pooling.py` providing complete train/evaluate and
+  epoch-boundary continuation. It reuses the existing Dataset, scoring head,
+  objective, training and ranking routines. Config validation requires matching
+  HSTU settings except the output directory and control/reference identifiers.
+  The reference CPU initializer supplies the same untrained ID table and initial
+  RNG state; only that table is trainable. No learned positions or attention
+  survive into the control. Prefixes use deterministic dense triangular means,
+  not future items. Existing src and diagnostic/evaluation scripts are unchanged,
+  preserving historical checkpoint identities. New control/source/config hashes
+  identify these separate checkpoints. Five standard-library config tests,
+  syntax/CLI and unchanged-source checks passed locally; neural tests await server.
+
+Next action: run the 12 focused server CPU checks and three-epoch CUDA smoke
+using `configs/mean-pooling-smoke-server.json`, as documented in teaching note 17.
+Inspect actual allocation, parameter counts, initial lookup identity, gradients,
+probe loss, restored outputs, checksums, elapsed time and memory before full data.
+The full control config preserves seed 42, 30 epochs, batch 32/64 and all reference
+hyperparameters, but full training is pending the smoke gate. Primary comparison
+must use both uncorrected models. No mean-control quality or speed claim is made.
+Do not select settings from test. Raw/corrected HSTU records remain frozen;
+content fusion, multi-seed robustness and real-data interrupted continuation
+remain outside the completed verification record.
