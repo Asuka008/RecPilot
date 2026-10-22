@@ -362,13 +362,18 @@ server run artifacts have not been independently inspected from this Mac.
   identify these separate checkpoints. Five standard-library config tests,
   syntax/CLI and unchanged-source checks passed locally; neural tests await server.
 
-Next action: run the 12 focused server CPU checks and three-epoch CUDA smoke
-using `configs/mean-pooling-smoke-server.json`, as documented in teaching note 17.
-Inspect actual allocation, parameter counts, initial lookup identity, gradients,
-probe loss, restored outputs, checksums, elapsed time and memory before full data.
-The full control config preserves seed 42, 30 epochs, batch 32/64 and all reference
-hyperparameters, but full training is pending the smoke gate. Primary comparison
-must use both uncorrected models. No mean-control quality or speed claim is made.
-Do not select settings from test. Raw/corrected HSTU records remain frozen;
-content fusion, multi-seed robustness and real-data interrupted continuation
-remain outside the completed verification record.
+The user reported the three-epoch mean-control smoke PASS at
+`runs/mean-pooling-smoke/20261022T155527051279Z/results.json`.
+Mean/reference parameter counts were 1,230,144 / 1,273,406. Training loss fell
+10.029359 -> 7.695507, probe 9.183881 -> 6.918766, and validation NDCG@10
+0.000836 -> 0.006182. PASS enforces embedding updates, reduced probe loss,
+exact restored outputs and unchanged data hashes. Full resource/runtime fields
+and the 12 focused CPU test completion have not been returned.
+
+Next action: confirm the 12 focused CPU checks pass, inspect current GPU allocation,
+then run the full mean-control config (seed 42, 30 epochs, batch 32/64 and matched
+reference hyperparameters). Primary comparison must use both uncorrected models
+and select the checkpoint on validation NDCG@10. No full mean-control quality or
+speed claim is made. Do not select settings from test. Raw/corrected HSTU records
+remain frozen; content fusion, multi-seed robustness and real-data interrupted
+continuation remain outside the completed verification record.
