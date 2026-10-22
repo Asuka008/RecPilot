@@ -161,7 +161,7 @@ at commit a129baa on 2026-10-18. The tests use synthetic records and do not
 verify the transferred MicroLens files or CUDA behavior. Pure-ID HSTU and learned ID embeddings have since been implemented and verified
 with synthetic tasks and the separate official ML-1M experiment. MicroLens HSTU
 training/evaluation passed its 33 focused server CPU tests and three-epoch
-real-data smoke run; its first full-data 30-epoch run subsequently returned PASS. No title
+real-data smoke run; its first full-data 30-epoch run and frozen test evaluation subsequently returned PASS. No title
 embedding table or content fusion has been implemented.
 
 ## Locally verified data findings (2026-10-16)
@@ -302,14 +302,30 @@ server run artifacts have not been independently inspected from this Mac.
   not last.pt, for the frozen first-candidate test evaluation. Training loss
   goes from 9.077149 to 8.120724. Full-report exact selection, all four metrics,
   slices, actual hardware, memory, provenance and elapsed time await retrieval.
-  No MicroLens HSTU test result, multi-seed robustness or online lift is claimed.
+- The user returned frozen best.pt test evaluation PASS at
+  `runs/hstu-microlens/20261022T030714112850Z/results.json`, all 50,000 users.
+  Recall@10/20=0.04882/0.07238; NDCG@10/20=
+  0.02472889109808947/0.030686079403136588. Relative gains over fixed ItemCF
+  are 38.14%/25.66% for Recall and 41.53%/32.91% for NDCG. These are one-seed,
+  offline protocol results, not online lift or a controlled architecture claim.
+  Frequency-0 (2,226 users) and frequency-1-5 (11,557 users) targets have no
+  Top-20 hits; frequency-6-20 contributes 153 and frequency-21+ contributes
+  3,466 of the 3,619 Top-20 hits. Do not choose improvements from test slices.
+- A local pure-Python supervision audit at L=32 found 259,708 history events,
+  206,613 retained positive prediction positions, 18,490 history items and
+  18,008 positive-target items. Of history-observed items, 482 never receive a
+  positive target. Validation frequency-1-5 has only 74/7,264 targets with zero
+  retained positive occurrences; missing supervision alone is not a sufficient
+  explanation for all tail behavior. The audit reads no test labels. Its two
+  synthetic tests and full local data audit passed; server replay is pending.
+  See `scripts/audit_hstu_supervision.py` and teaching note 13.
 
-Next action: freeze the existing first-candidate config and evaluate its
-validation-selected `best.pt` on test with `src.run_hstu_microlens evaluate`.
-Keep `configs/hstu-microlens-train-server.json`, seed 42, 30-epoch budget and
-validation NDCG@10 selection unchanged. Also retrieve the completed training
-report selection, validation slices, checks, provenance and resource fields.
-See `docs/learning-12-microlens-full-training.md` for exact commands. Do not
-retrain, extend epochs, add features or select settings based on test scores.
-Further improvement experiments require validation diagnosis and a separate
-versioned experiment. Real-data interrupted-run continuation remains unreported.
+Next action: retrieve the selected training checkpoint's validation slices,
+full-run resources/provenance, and compare validation frequency groups with the
+existing ItemCF validation report. Verify matching data hashes first. Reproduce
+the positive-supervision audit on the server if needed. Keep the first model,
+config and test result frozen. Use validation diagnosis to select a separate
+improvement experiment; masked mean pooling remains a proposed neural control,
+not yet implemented. Do not immediately add text, reweight losses or extend
+training because of test slices. See `docs/learning-13-microlens-baseline-results.md`.
+Real-data interrupted-run continuation and multi-seed robustness remain unreported.

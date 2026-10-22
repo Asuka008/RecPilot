@@ -1,7 +1,8 @@
 # 12：首个 MicroLens 全量 HSTU 训练候选
 
 日期：2026-10-21。**33 个服务器 CPU 测试、三轮短训练及资源审核已通过；
-首轮全量 30 轮训练也已回传 PASS。下一步读取详细报告并评估冻结模型的测试集。**
+首轮全量 30 轮训练与冻结模型的测试评估均已回传 PASS。
+结果和下一步验证诊断见[笔记 13](learning-13-microlens-baseline-results.md)。**
 
 ## 为什么可以进入全量训练
 
@@ -92,7 +93,7 @@ python -m src.run_hstu_microlens train --config configs/hstu-microlens-train-ser
 因为入口会核对 Git、源码哈希、配置、数据与运行环境。合成 CPU 恢复一致性测试
 已通过；真实数据的独立中断/恢复仍无回传记录。
 
-**训练命令不会评估测试集。** 首轮设置现已按下方记录冻结；全量测试、跨种子
+**训练命令不会评估测试集。** 首轮设置现已按下方记录冻结；首轮测试已完成；跨种子
 稳定性和性能结论仍需分别验证。
 
 ## 首轮全量训练通过记录与测试配置冻结
@@ -148,3 +149,11 @@ python -m src.run_hstu_microlens evaluate --config configs/hstu-microlens-train-
 评估会核对配置、数据身份和源码身份；训练未被本次说明更新修改。
 回传上述摘要、测试指标与结果路径后，再与固定 ItemCF 测试分数比较和分析切片。
 全量训练的实际硬件/耗时/显存和精确选择字段尚未回传，不能套用 smoke 数字。
+
+
+## 冻结测试已通过
+
+用户按本页 best.pt 命令完成测试评估并返回 `MicroLens HSTU evaluate: PASS`。
+测试 run 为 `runs/hstu-microlens/20261022T030714112850Z/results.json`。
+四项总体指标、切片与下一步验证诊断见[笔记 13](learning-13-microlens-baseline-results.md)。
+不用为了收集资源/验证摘要重新训练或重复测试；读取已有报告即可。

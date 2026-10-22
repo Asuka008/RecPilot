@@ -9,14 +9,14 @@ before training it on MicroLens.
 MovieLens-1M, with final metrics close to the upstream reference. MicroLens
 Popularity and ItemCF results are available. The MicroLens HSTU training and
 evaluation integration passed 33 focused server tests and a three-epoch real-data
-smoke run. The first full-data HSTU candidate completed 30 epochs; the next step
-is test evaluation of its validation-selected checkpoint.
+smoke run. The first full-data HSTU candidate completed training and frozen
+test evaluation; validation diagnostics are next.
 
 ## Verified progress
 
 Status as of **2026-10-21**. Completed server results are based on outputs
 returned by the project owner. MicroLens integration tests and smoke training
-passed, and the first full-data run returned PASS. HSTU test results are pending.
+passed, and the first full-data training and test evaluations returned PASS.
 
 | Milestone | Status and evidence |
 |---|---|
@@ -27,7 +27,7 @@ passed, and the first full-data run returned PASS. HSTU test results are pending
 | Portable dense HSTU block | Twelve server cases passed output and gradient comparisons against official blocks, covering position-only and time/position bias |
 | Pure-ID HSTU training components | Four-user synthetic fit reduced fixed-task loss by 99.3%; checkpoint output, RNG, and next-step continuation checks passed |
 | Official MovieLens-1M recipe | Batch 32/128 smoke checks and batch 128, 101-epoch training completed on the server |
-| MicroLens HSTU baseline | 33 focused server CPU tests, smoke run and first full-data 30-epoch training passed; best printed validation NDCG@10=0.037724 at epoch 28, test pending |
+| MicroLens HSTU baseline | Training and frozen test evaluation passed; test Recall@10=0.04882, NDCG@10=0.024729; validation-selected checkpoint from the first 30-epoch candidate |
 | Feature improvements and recommendation service | Planned; no measured results yet |
 
 The portable implementation is in [src/models/hstu.py](src/models/hstu.py) and
@@ -49,6 +49,7 @@ ascending mapped item ID. Each split contains 50,000 user targets.
 | Validation | ItemCF | 0.04804 | 0.024495 | 0.07234 | 0.030645 |
 | Test | Popularity | 0.00244 | 0.001254 | 0.00378 | 0.001594 |
 | Test | ItemCF | 0.03534 | 0.017473 | 0.05760 | 0.023088 |
+| Test | Pure-ID HSTU | 0.04882 | 0.024729 | 0.07238 | 0.030686 |
 
 ItemCF uses sparse cosine similarity and 100 neighbors per item. Targets whose
 items have zero training-history occurrences remain in the evaluation and are
@@ -65,8 +66,23 @@ NDCG@10 is **0.037724 at epoch 28**, compared with ItemCF **0.024495**
 
 This is one candidate and one seed. Exact artifact selection, remaining ranking
 metrics, validation slices and full-run resource fields are awaiting retrieval.
-No HSTU test score or online gain has been measured yet. Run identity:
+The frozen test evaluation passed for all 50,000 users: Recall@10=0.04882,
+NDCG@10=0.02472889109808947, Recall@20=0.07238,
+NDCG@20=0.030686079403136588. Relative to fixed ItemCF, these increase by
+38.14%, 41.53%, 25.66%, and 32.91%, respectively, for this seed and protocol.
+This is an offline result; no online gain or multi-seed robustness is established.
+
+Test targets with training-history frequency 0 or 1-5 have zero Top-20 hits
+(2,226 and 11,557 users). Of 3,619 Top-20 hits, 3,466 belong to frequency 21+.
+Before choosing an improvement, compare **validation** slices against ItemCF.
+A local data-only audit also distinguishes history occurrences from positive
+shifted labels: 482 history-observed items have no retained positive target at
+L=32. This alone cannot explain all weak tail results. See
+[results and diagnosis note 13](docs/learning-13-microlens-baseline-results.md).
+
+Training run identity:
 `runs/hstu-microlens/20261022T023420952080Z/results.json`.
+Test run: `runs/hstu-microlens/20261022T030714112850Z/results.json`.
 
 ### Official HSTU on MovieLens-1M
 
@@ -105,7 +121,7 @@ The ML-1M and MicroLens results use different datasets and protocols and should
 not be compared as competing model scores. In particular, the official recipe
 uses its temporal bias and next-event timestamps; the MicroLens integration
 uses position-only bias and full-catalog cross entropy, rather than the official
-sampled-softmax objective. Its smoke and first full-data training runs passed; test quality remains to be measured.
+sampled-softmax objective. Its smoke, full-data training and frozen test evaluations passed.
 
 ## Data contract
 
@@ -318,9 +334,10 @@ runs/             Generated experiment artifacts, ignored by Git
 
 The 33 focused CPU tests (including synthetic epoch-boundary continuation) and
 real-data smoke run passed on the server. The resource report has been reviewed.
-The first full-data 30-epoch candidate also passed. Freeze its existing settings,
-retrieve the detailed training summary and evaluate validation-selected best.pt
-on test. Real-data interrupted-run continuation has not been separately
+The first full-data 30-epoch candidate and frozen test evaluation also passed.
+Retrieve its validation slices and resource/provenance summary, compare against
+ItemCF on validation, and audit supervision before choosing a separate improvement
+experiment. Keep the first test result fixed. Real-data interrupted-run continuation has not been separately
 reported.
 Compare against ItemCF and diagnose results by history length and target-item
 training frequency, including zero-occurrence targets.
