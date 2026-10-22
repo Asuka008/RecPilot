@@ -31,7 +31,7 @@ passed, and the first full-data training and test evaluations returned PASS.
 | Pure-ID HSTU training components | Four-user synthetic fit reduced fixed-task loss by 99.3%; checkpoint output, RNG, and next-step continuation checks passed |
 | Official MovieLens-1M recipe | Batch 32/128 smoke checks and batch 128, 101-epoch training completed on the server |
 | MicroLens HSTU baseline | Training and frozen test evaluation passed; test Recall@10=0.04882, NDCG@10=0.024729; validation-selected checkpoint from the first 30-epoch candidate |
-| Prefix-mean neural control | Implemented with matched settings, shared scoring/objective and isolated source identity; 5 config tests passed locally; server smoke and full 30-epoch training PASS; best validation NDCG@10 about 0.029651; Mean beats raw HSTU on lower-frequency validation groups; paired identity audit and CPU test output pending |
+| Prefix-mean neural control | Implemented with matched settings, shared scoring/objective and isolated source identity; 5 config tests passed locally; server smoke and full 30-epoch training PASS; best validation NDCG@10 about 0.029651; Mean beats raw HSTU on lower-frequency validation groups; paired identity audit and frozen test PASS (NDCG@10=0.017816); CPU test output pending |
 | Content features and recommendation service | Planned; no measured results yet |
 
 The portable implementation is in [src/models/hstu.py](src/models/hstu.py) and
@@ -53,6 +53,7 @@ ascending mapped item ID. Each split contains 50,000 user targets.
 | Validation | ItemCF | 0.04804 | 0.024495 | 0.07234 | 0.030645 |
 | Test | Popularity | 0.00244 | 0.001254 | 0.00378 | 0.001594 |
 | Test | ItemCF | 0.03534 | 0.017473 | 0.05760 | 0.023088 |
+| Test | PrefixMean | 0.03634 | 0.017816 | 0.05982 | 0.023729 |
 | Test | Pure-ID HSTU | 0.04882 | 0.024729 | 0.07238 | 0.030686 |
 | Test | HSTU + fixed frequency correction | 0.05174 | 0.027107 | 0.07572 | 0.033161 |
 
@@ -373,9 +374,10 @@ HSTU wins in all four validation history-length groups, with larger relative gai
 for longer histories. Mean still wins in the two observed lower-frequency target groups.
 The frozen Mean test wrapper verifies paired artifacts before calling the existing
 evaluator; see [note 18](docs/learning-18-frozen-mean-test.md). Six admission tests
-passed locally; actual preflight and test evaluation await the server. Next, run
-the 18 focused tests and complete one frozen Mean test evaluation;
-full training does not need to be repeated.
+passed locally. The server preflight and frozen Mean test now both returned PASS;
+18 focused server test completion remains unreported. No repeated training or test
+is needed. Raw HSTU test NDCG@10 is 38.80% higher than Mean, while Mean still
+wins on the two lower observed target-frequency groups; see note 18 for exact results.
 
 Three server smoke epochs returned PASS (validation NDCG@10 0.000836 to
 0.006182). Mean/reference parameter counts were 1,230,144 / 1,273,406.

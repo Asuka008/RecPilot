@@ -311,3 +311,7 @@ python -m controls.run_mean_pooling evaluate --config configs/mean-pooling-train
 
 冻结测试现在可使用[笔记 18](learning-18-frozen-mean-test.md)的配对预检入口，
 它自动完成上述身份核对，再调用同一个评估器；避免手工误选 last.pt。
+
+
+后续冻结 Mean 测试及双报告配对预检均已返回 PASS，完整结果见
+[笔记 18](learning-18-frozen-mean-test.md)。不需要再次运行训练或测试命令。

@@ -412,9 +412,24 @@ selection overrides; --check-only avoids model execution. Six standard-library
 corruption/admission tests passed locally, along with syntax and CLI checks.
 No model, training config, scoring routine or existing source identity changed.
 
-Next action: run the 18 focused server tests (the previous 12 plus six admission
-checks), inspect GPU allocation, then execute the frozen Mean test wrapper as
-shown in teaching note 18. Mean config remains frozen, selected epoch is 19.
-Actual preflight and test evaluation await server output. No retraining is needed.
-Keep raw/corrected HSTU frozen and do not retune on test. Text fusion remains a
-subsequent optional experiment, not a proven remedy.
+The user returned `Frozen mean preflight: PASS` followed by
+`Mean pooling evaluate: PASS`, using epoch 19 best.pt. The test report is
+`runs/mean-pooling/20261022T163358097988Z/results.json`.
+Mean test Recall@10/NDCG@10/Recall@20/NDCG@20 are
+0.03634/0.017815997493387952/0.05982/0.02372864608208967.
+Raw HSTU test NDCG@10 is 38.80% higher than Mean; corrected HSTU is 52.15%
+higher, including both encoder and correction changes. Mean frequency 1-5/6-20/21+
+Recall@20 is 0.00830665398/0.03191489362/0.13453708621 (96/615/2280 hits).
+Zero-frequency remains zero. Mean loses to raw HSTU in every test history-length
+group, but wins in the two lower observed target-frequency groups, confirming
+validation observations. Actual paired configurations, users, data, sources and
+best checkpoint passed the preflight. Eighteen focused server test completion
+and this evaluation's resource fields have not been returned.
+
+The Mean real-data control record is complete; do not repeat training or test
+without a concrete reason. Retain HSTU and keep all reported test recipes frozen.
+A subsequent title-feature experiment remains optional and must be designed from
+prior validation evidence: frozen text encoder, aligned cached features, explicit
+history/candidate representations, ID-only/init/simple-fusion comparisons and
+validation-only selection. No title encoder, feature artifact or gain exists yet.
+Do not treat test feedback as a new tuning signal or claim significance from one seed.
