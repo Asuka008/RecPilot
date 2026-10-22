@@ -31,7 +31,7 @@ passed, and the first full-data training and test evaluations returned PASS.
 | Pure-ID HSTU training components | Four-user synthetic fit reduced fixed-task loss by 99.3%; checkpoint output, RNG, and next-step continuation checks passed |
 | Official MovieLens-1M recipe | Batch 32/128 smoke checks and batch 128, 101-epoch training completed on the server |
 | MicroLens HSTU baseline | Training and frozen test evaluation passed; test Recall@10=0.04882, NDCG@10=0.024729; validation-selected checkpoint from the first 30-epoch candidate |
-| Prefix-mean neural control | Implemented with matched settings, shared scoring/objective and isolated source identity; 5 config tests passed locally; server smoke and full 30-epoch training PASS; best validation NDCG@10 about 0.029651; slices/resources and CPU test output pending |
+| Prefix-mean neural control | Implemented with matched settings, shared scoring/objective and isolated source identity; 5 config tests passed locally; server smoke and full 30-epoch training PASS; best validation NDCG@10 about 0.029651; Mean beats raw HSTU on lower-frequency validation groups; paired identity audit and CPU test output pending |
 | Content features and recommendation service | Planned; no measured results yet |
 
 The portable implementation is in [src/models/hstu.py](src/models/hstu.py) and
@@ -369,14 +369,16 @@ initial ID lookup, candidate scoring, objective and training budget. Each traini
 position uses only its visible prefix; no score correction is applied. It lives
 in controls/, leaving the historical shared src identity unchanged.
 
-Next, inspect the two saved best-validation reports and their slices; full training
+Next, verify paired report identities and inspect HSTU validation history-length slices; full training
 does not need to be repeated.
 
 Three server smoke epochs returned PASS (validation NDCG@10 0.000836 to
 0.006182). Mean/reference parameter counts were 1,230,144 / 1,273,406.
-The 12 focused CPU test output and complete resource report remain unreported;
+The 12 focused CPU test output remains unreported; Mean resources and slices were returned.
 full-data training has since returned PASS, with best validation NDCG@10 about
-0.029651 at epoch 19. Inspect saved validation slices using the comparison command in
+0.029651 at epoch 19. Mean is weaker overall but better on frequency 1–5 and 6–20
+validation targets. Its run took 762.42 seconds on A100 MIG, versus 1196.93 seconds
+for HSTU; these are whole-run timings, not serving benchmarks. Inspect paired reports using
 [prefix-mean note 17](docs/learning-17-prefix-mean-control.md).
 Real-data interrupted training continuation and multi-seed robustness remain
 unreported. Corrected-test resource fields have not yet been returned.

@@ -376,11 +376,25 @@ Best validation NDCG@10 was approximately 0.029651 at epoch 19 (log-rounded),
 versus raw HSTU 0.03772422803068947 at epoch 28. HSTU is approximately 27.23%
 higher relative to Mean. Final Mean loss was 8.059710; final validation NDCG@10
 was 0.029334. This is a single-seed matched-recipe comparison, not a pure
-attention/order ablation or a significance claim. Full precision, slices, current
-GPU, time/memory and focused CPU test completion remain unreported.
+attention/order ablation or a significance claim. The next user report supplies full precision, Mean slices and resources below;
+focused CPU test completion remains unreported.
 
-Next action: inspect saved best-validation slices and report identities using
-teaching note 17, without retraining or testing. Keep raw/corrected HSTU frozen.
-No mean-control speed claim is made. Do not select settings from test. Content
-fusion, multi-seed robustness and real-data interrupted continuation remain
-outside the completed verification record.
+The user subsequently returned the exact Mean validation score
+0.02965074791224214 and slices: frequency 1-5 NDCG@10=0.0058661551,
+Recall@20=0.0136288546 (99 hits); 6-20 NDCG@10=0.0169910603,
+Recall@20=0.0494578154 (935 hits); 21+ NDCG@10=0.0486670575,
+Recall@20=0.1552616696 (3569 hits). Raw HSTU is better overall and in 21+,
+but worse in both observed lower-frequency groups. Zero-frequency remains zero.
+This motivates investigating representation/scoring before attributing tail
+failure to missing text. Mean does not beat ItemCF in the lower-frequency groups.
+Mean time was 762.4217709070072 seconds, allocated/reserved peak bytes
+160582144/230686720, on A100-SXM4-80GB MIG 2g.20gb. Versus the earlier HSTU
+1196.934-second run, total run time was 36.3% lower; this is not serving latency.
+Restoration, probe reduction and embedding update checks returned true/nonzero;
+restored last epoch 30 is distinct from selected best epoch 19.
+
+Next action: verify paired report identities and read HSTU best-validation
+history-length slices via teaching note 17. No retraining is needed. The 12 CPU
+test completion remains unreported. Keep raw/corrected HSTU frozen. Do not select
+settings from test. Text fusion remains an optional experiment, not a proven
+remedy for the observed tail regression.
