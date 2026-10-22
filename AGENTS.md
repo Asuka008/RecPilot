@@ -393,8 +393,18 @@ Mean time was 762.4217709070072 seconds, allocated/reserved peak bytes
 Restoration, probe reduction and embedding update checks returned true/nonzero;
 restored last epoch 30 is distinct from selected best epoch 19.
 
-Next action: verify paired report identities and read HSTU best-validation
-history-length slices via teaching note 17. No retraining is needed. The 12 CPU
-test completion remains unreported. Keep raw/corrected HSTU frozen. Do not select
-settings from test. Text fusion remains an optional experiment, not a proven
-remedy for the observed tail regression.
+HSTU best-validation history-length slices have now been returned, with the
+same group counts as Mean. NDCG@10 for lengths 1-5/6-10/11-20/21+ is
+0.03338191598/0.04837605255/0.05298267643/0.06827897215.
+Versus Mean this is +9.79%/+62.51%/+135.64%/+502.89%; the last group has
+only 608 users and a low Mean baseline. HSTU also wins Recall@20 in all groups.
+History length and target frequency are separate axes; without joint slices do
+not infer that each short-history user should get Mean or that order alone
+causes the gain. Retain HSTU; lower-frequency target performance remains a
+specific weakness despite overall and history-length wins.
+
+Next action: verify paired report identities using teaching note 17 and obtain
+12 CPU test completion. Mean configuration is frozen and best epoch is 19;
+a single fixed test evaluation can then complete the control record. Do not
+retune on test. No retraining is needed. Keep raw/corrected HSTU frozen. Text
+fusion remains an optional subsequent experiment, not a proven remedy.

@@ -369,8 +369,10 @@ initial ID lookup, candidate scoring, objective and training budget. Each traini
 position uses only its visible prefix; no score correction is applied. It lives
 in controls/, leaving the historical shared src identity unchanged.
 
-Next, verify paired report identities and inspect HSTU validation history-length slices; full training
-does not need to be repeated.
+HSTU wins in all four validation history-length groups, with larger relative gains
+for longer histories. Mean still wins in the two observed lower-frequency target groups.
+Next, verify paired report identities and complete one frozen Mean test evaluation;
+full training does not need to be repeated.
 
 Three server smoke epochs returned PASS (validation NDCG@10 0.000836 to
 0.006182). Mean/reference parameter counts were 1,230,144 / 1,273,406.
