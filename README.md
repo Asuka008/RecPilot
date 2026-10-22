@@ -11,11 +11,12 @@ Popularity and ItemCF results are available. The MicroLens HSTU training and
 evaluation integration passed 33 focused server tests and a three-epoch real-data
 smoke run. The first full-data HSTU candidate completed training and frozen
 test evaluation. A validation-only score correction selected alpha=0.5 and
-improved validation NDCG@10 by 6.95%; its fixed test evaluation is next.
+improved validation NDCG@10 by 6.95%. Its fixed test evaluation passed with
+NDCG@10 +9.62% over raw HSTU; low-frequency matching remains unresolved.
 
 ## Verified progress
 
-Status as of **2026-10-21**. Completed server results are based on outputs
+Status as of **2026-10-22**. Completed server results are based on outputs
 returned by the project owner. MicroLens integration tests and smoke training
 passed, and the first full-data training and test evaluations returned PASS.
 
@@ -51,6 +52,7 @@ ascending mapped item ID. Each split contains 50,000 user targets.
 | Test | Popularity | 0.00244 | 0.001254 | 0.00378 | 0.001594 |
 | Test | ItemCF | 0.03534 | 0.017473 | 0.05760 | 0.023088 |
 | Test | Pure-ID HSTU | 0.04882 | 0.024729 | 0.07238 | 0.030686 |
+| Test | HSTU + fixed frequency correction | 0.05174 | 0.027107 | 0.07572 | 0.033161 |
 
 ItemCF uses sparse cosine similarity and 100 neighbors per item. Targets whose
 items have zero training-history occurrences remain in the evaluation and are
@@ -91,15 +93,21 @@ Training run identity:
 `runs/hstu-microlens/20261022T023420952080Z/results.json`.
 Test run: `runs/hstu-microlens/20261022T030714112850Z/results.json`.
 
-### Frozen score correction (validation only so far)
+### Frozen score correction (validation and test passed)
 
 The predeclared alpha=[0,0.25,0.5,1] audit selected **alpha=0.5** on validation
 NDCG@10: **0.040344999048154036**, versus raw HSTU **0.03772422803068947**
 (+6.95%). Validation Recall@20 is 0.10616 versus 0.10176. The model weights are
 unchanged; the correction subtracts a fixed training-positive-frequency offset.
 The 1-5 target-frequency group still has zero hits, so this does not solve tail
-matching. The selected recipe's test metrics are pending. See
-[fixed score-test note 15](docs/learning-15-selected-score-test.md).
+matching. The fixed test evaluation passed for 50,000 users:
+Recall@10=0.05174, NDCG@10=0.027107023028108444, Recall@20=0.07572,
+NDCG@20=0.03316138641732385. Relative to raw HSTU, gains are 5.98%, 9.62%,
+4.61%, and 8.07%, respectively. This changes scoring only, not model weights.
+Zero- and 1-5-frequency targets still have zero Top-20 hits. The 167 extra
+Top-20 hits comprise 97 in frequency 6-20 and 70 in 21+. Test artifact:
+`runs/hstu-score-selected-test/20261022T151722543561Z/results.json`.
+See [corrected results note 16](docs/learning-16-corrected-test-results.md).
 
 ### Official HSTU on MovieLens-1M
 
@@ -352,22 +360,15 @@ runs/             Generated experiment artifacts, ignored by Git
 The 33 focused CPU tests (including synthetic epoch-boundary continuation) and
 real-data smoke run passed on the server. The resource report has been reviewed.
 The first full-data 30-epoch candidate and frozen test evaluation also passed.
-Validation score-correction results have been returned. Freeze alpha=0.5 and
-evaluate only the saved validation winner on test:
-
-```bash
-python -m unittest tests.test_score_selection tests.test_score_audit_server -v
-python scripts/evaluate_hstu_score_selection.py --config configs/hstu-score-selected-test-server.json
-```
-
-The entry point verifies a completed validation report and input identities,
-reconstructs its winner, and permits no test-time alpha override. Eight small
-tests passed locally; the extended server pipeline test and corrected test scores
-are pending. The original model and test result stay fixed. Real-data interrupted
-training continuation remains unreported. See
-[selection and test note 15](docs/learning-15-selected-score-test.md).
-Compare against ItemCF and diagnose results by history length and target-item
-training frequency, including zero-occurrence targets.
+The validation-selected alpha=0.5 recipe also passed its fixed test evaluation.
+Keep both raw and corrected results frozen. The proposed next diagnostic is a
+masked history mean-pooling neural control with the same embeddings, scoring,
+objective and training budget, compared first without score correction.
+It is not yet implemented. Establish its causal-prefix/padding/checkpoint
+contracts and server smoke gate before full-data validation. See
+[results and control plan 16](docs/learning-16-corrected-test-results.md).
+Real-data interrupted training continuation and multi-seed robustness remain
+unreported. Corrected-test resource fields have not yet been returned.
 
 Text/content features must earn their cost in controlled experiments. A full
 SASRec comparison is optional; no superiority over SASRec is claimed. Agents are

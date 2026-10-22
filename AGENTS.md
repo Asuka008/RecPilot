@@ -254,7 +254,7 @@ After preprocessing is verified, proceed in this order unless the user explicitl
 - Avoid overwhelming the user with future stages while a foundational stage is incomplete.
 - When offering code, make it runnable in this repository and state the exact command to verify it.
 
-## Current implementation and verification status (2026-10-21)
+## Current implementation and verification status (2026-10-22)
 
 This section supersedes older pending-stage descriptions in historical notes.
 Server results below are based on outputs returned by the project owner; raw
@@ -335,16 +335,28 @@ server run artifacts have not been independently inspected from this Mac.
   Alpha=1 worsens overall metrics. Every alpha still has zero 1-5-frequency
   target hits; alpha=0.5 raises 6-20 Recall@20 to 0.01523407, still below ItemCF.
   The final PASS line and diagnostic resource fields were not included in the
-  pasted output; the fixed test entry point must verify the report status.
+  pasted output; the later fixed test PASS confirms that report-status guard succeeded.
 
-Next action: freeze the selected correction recipe and server-verify/test only
-that recipe using `scripts/evaluate_hstu_score_selection.py` and
-`configs/hstu-score-selected-test-server.json`. There is no alpha override or
-test-time grid. Recompute the validation winner and verify report status, anchor,
-script/model/checkpoint/data identities before evaluating one test recipe.
-The original `src/` and diagnostic script remain unchanged for old identities.
-Eight small NumPy tests and syntax checks passed locally; the extended server
-CPU pipeline test and corrected test metrics are pending. See teaching note 15.
-Do not adjust alpha from test. The initial model/test record remains frozen;
-this is a scoring improvement candidate, not a solution to low-frequency matching.
-Masked mean pooling and content changes remain unimplemented hypotheses.
+- The fixed alpha=0.5, smoothing=1 recipe returned
+  `HSTU selected-score test: PASS` at
+  `runs/hstu-score-selected-test/20261022T151722543561Z/results.json`.
+  Test Recall@10/20=0.05174/0.07572 and NDCG@10/20=
+  0.027107023028108444/0.03316138641732385, all 50,000 users.
+  Relative gains over raw HSTU are 5.98%/4.61% Recall and 9.62%/8.07% NDCG.
+  Top-20 adds 167 hits: frequency-6-20 gains 97 (153->250), 21+ gains 70
+  (3466->3536); frequency 0 and 1-5 remain zero. This validates a single-seed
+  scoring improvement, not a new encoder, cold-start solution or online lift.
+  The actual corrected-test runtime/memory fields and separate CPU test logs
+  have not been returned; the full real-data test entry point did return PASS.
+
+Next action: preserve raw/corrected baselines and plan a masked history mean-
+pooling neural control using the same embeddings/scoring/objective/data and
+training budget. It is not yet implemented. Primary comparison must use both
+uncorrected models, so encoder and scoring effects are not conflated. Training
+means must use each visible prefix, never the complete input at every position.
+Require prefix/causal/padding/finite-gradient/checkpoint checks and server smoke
+before full-data validation. Preserve historical checkpoint source identities.
+See `docs/learning-16-corrected-test-results.md` for results and constraints.
+Do not tune alpha or choose later settings on test; multi-seed robustness and
+real-data interrupted training continuation remain unreported. Content fusion
+remains an unimplemented hypothesis.
