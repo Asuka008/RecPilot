@@ -9,7 +9,8 @@ before training it on MicroLens.
 MovieLens-1M, with final metrics close to the upstream reference. MicroLens
 Popularity and ItemCF results are available. The MicroLens HSTU training and
 evaluation integration passed 33 focused server tests and a three-epoch real-data
-smoke run. Resource review and full-data HSTU training are next.
+smoke run. Its runtime/memory report has been reviewed; the first full-data HSTU
+training candidate is next.
 
 ## Verified progress
 
@@ -186,7 +187,7 @@ The source checkout defaults to
 `~/upstream/generative-recommenders-reference`; retrieve and verify it with
 `python scripts/prepare_hstu_reference.py source` before these checks.
 
-### MicroLens HSTU integration gate (passed; resource review next)
+### MicroLens HSTU integration gate (passed)
 
 Synchronize the code through Git first, then use the existing reference environment:
 
@@ -202,7 +203,11 @@ Reported server result: **33 tests passed in 11.080s** and
 9.946178, 8.179191, 7.135582; fixed-batch probe loss was 8.586332, 7.200485,
 6.391037; validation NDCG@10 was 0.001397, 0.004264, 0.005421.
 Result: `runs/hstu-microlens-smoke/20261022T022602941154Z/results.json`.
-The actual device, peak memory and report details are awaiting review.
+Returned report: PyTorch 2.10.0+cu128, CUDA runtime 12.8, A100-SXM4-80GB
+MIG 2g.20gb with 20,937,965,568 visible bytes. Peak PyTorch allocated/reserved
+memory was **0.154/0.193 GiB**; total elapsed time was **17.091s**. Parameter
+updates, exact checkpoint outputs, reduced probe loss and unchanged data checksums
+were confirmed. These are smoke-run measurements, not full-data or serving results.
 
 The smoke run uses 1,024 seeded training users, 1,024 seeded validation users,
 the full item catalog, and three FP32 epochs. Expect `MicroLens HSTU train: PASS`,
@@ -212,11 +217,20 @@ reports. Smoke metrics are not full-data quality results.
 
 The entry point supports epoch-boundary continuation with `--resume PATH/last.pt`;
 keep its original sibling `best.pt`. Every continuation writes a new run directory.
-The full-data 30-epoch configuration is a draft to review after smoke validation.
+The first full-data candidate retains train/eval batch 32/64, runs 30 epochs
+from fresh initialization with seed 42, and uses all 50,000 users per split.
 Training selects checkpoints by validation NDCG@10 only. Explicit checkpoint
 evaluation uses `evaluate --config CONFIG --checkpoint PATH/best.pt --split val`
 (or `test` only after settings are frozen, using a full-data configuration).
-See [teaching note 11](docs/learning-11-microlens-hstu.md) for shapes, protocol,
+Start it on the server after pulling this version and checking `nvidia-smi`:
+
+```bash
+python -m src.run_hstu_microlens train --config configs/hstu-microlens-train-server.json
+```
+
+See [full-training note 12](docs/learning-12-microlens-full-training.md) for
+fixed settings, completion checks and continuation. See
+[teaching note 11](docs/learning-11-microlens-hstu.md) for shapes, protocol,
 continuation checks and exact server commands.
 
 ### Official MovieLens-1M experiment
@@ -290,9 +304,9 @@ runs/             Generated experiment artifacts, ignored by Git
 ## Next milestone
 
 The 33 focused CPU tests (including synthetic epoch-boundary continuation) and
-real-data smoke run passed on the server. Inspect the smoke report hardware,
-memory and checks, then review full-data settings and select on validation before
-a fixed test run. Real-data interrupted-run continuation has not been separately
+real-data smoke run passed on the server. The resource report has been reviewed.
+Run the first full-data 30-epoch candidate and select on validation before a fixed
+test run. Real-data interrupted-run continuation has not been separately
 reported.
 Compare against ItemCF and diagnose results by history length and target-item
 training frequency, including zero-occurrence targets.

@@ -153,7 +153,7 @@ input. The sequential Dataset and DataLoader contract passed its eight server
 CPU tests on 2026-10-18. All three processed-data checksums also matched the Mac
 on that date. Shared evaluation and simple baselines subsequently passed server verification;
 the MicroLens HSTU integration tests and three-epoch smoke run subsequently
-passed on the server; resource review is next.
+passed on the server; the resource report was reviewed and full-data training is next.
 
 The SASRec Dataset and DataLoader contract has been fully implemented and its
 eight focused CPU unit tests passed locally on 2026-10-05 and on the server
@@ -285,12 +285,23 @@ server run artifacts have not been independently inspected from this Mac.
   loss was 8.586332 -> 7.200485 -> 6.391037; validation NDCG@10 was
   0.001397 -> 0.004264 -> 0.005421. The smoke uses 1,024 training users and
   1,024 validation users, so it is not a full-data baseline comparison.
-  Actual runtime/device, peak memory, checks and provenance fields from this
-  result file have not yet been returned. Full-data training remains pending.
+  The user subsequently returned actual runtime and check fields: PyTorch
+  2.10.0+cu128, CUDA runtime 12.8, cuda:0, A100-SXM4-80GB MIG 2g.20gb,
+  20,937,965,568 visible bytes. Peak PyTorch allocated/reserved memory was
+  0.154/0.193 GiB; elapsed time was 17.091s. Parameters updated, checkpoint
+  outputs matched exactly at epoch 3, probe loss decreased, and processed-data
+  checksums were unchanged. These memory figures exclude some external GPU
+  allocations and do not establish full-data memory or serving performance.
+  Full-data training remains pending; Git/data-hash report fields were not shown.
 
-Next action: inspect the completed smoke report runtime, checks, data identity,
-elapsed time and peak allocated/reserved memory using the command in
-`docs/learning-11-microlens-hstu.md`, then review full-data training settings. Do not automatically start the full 30-epoch draft configuration or test
-selection. Training selects only by validation; test requires an explicit frozen
-checkpoint evaluation. Code/data/runtime identities must match for epoch-boundary
-continuation. Keep the original `last.pt` and sibling `best.pt` together.
+Next action: run the first full-data training candidate using
+`configs/hstu-microlens-train-server.json`: fresh initialization, seed 42,
+50,000 training users and validation users, 30 epochs, train/eval batch 32/64,
+FP32, position-only bias and full-catalog CE. Keep the smoke model and optimizer
+settings unchanged. Select earliest best validation NDCG@10; do not automatically
+evaluate test. See `docs/learning-12-microlens-full-training.md`. This is the first
+candidate, not an established optimal configuration. Inspect allocation again
+before starting and keep code/config/runtime unchanged during training.
+Code/data/runtime identities must match for epoch-boundary continuation. Keep
+original `last.pt` and sibling `best.pt` together. Full-data quality and measured
+resource usage remain awaiting server results.

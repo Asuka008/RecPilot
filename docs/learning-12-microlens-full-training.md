@@ -1,0 +1,96 @@
+# 12：首个 MicroLens 全量 HSTU 训练候选
+
+日期：2026-10-21。**33 个服务器 CPU 测试、三轮短训练及资源审核已通过；
+本页是下一次服务器训练的固定起点，尚无全量 HSTU 结果。**
+
+## 为什么可以进入全量训练
+
+用户回传短训练报告：实际设备为 A100 MIG 2g.20gb，约 19.50 GiB 可见显存，
+PyTorch 2.10.0+cu128、CUDA runtime 12.8；峰值 allocated/reserved 为
+0.154/0.193 GiB，总耗时约 17.091 秒。ID/HSTU 参数均有更新，固定训练 probe
+损失下降，epoch 3 的检查点输出精确一致，处理后文件哈希未变。
+完整数值和边界见[笔记 11](learning-11-microlens-hstu.md)。
+
+这验证了训练路径，并没有证明泛化收益。接下来扩大用户覆盖，保留其他设置，
+先获得可信的全量验证曲线。显存有余量也不必同时扩大 batch；batch 会改变更新
+次数和优化过程。正式实验仍需记录实际峰值，不能把短训练显存当作全量上限。
+
+## 首轮固定设置
+
+配置：`configs/hstu-microlens-train-server.json`，本次没有改动其数值。
+
+| 项目 | 设置 |
+|---|---|
+| 数据 | 既有 MicroLens 处理文件；50,000 个训练用户、50,000 个验证用户 |
+| 目录 | 19,220 个正 ID；0 为 padding |
+| 初始权重 | 新初始化，seed 42；不恢复 1,024 用户 smoke 权重 |
+| 模型 | 纯 ID、位置偏置，L=32、D=64、2 block、2 head，QK/V 每 head 为 32 |
+| 正则 | dropout 0.1、weight decay 0.0001 |
+| 训练 | FP32、TF32 关闭；30 轮，batch 32，worker 0 |
+| 优化 | AdamW，lr=0.001，betas=(0.9,0.98)，梯度裁剪范数 1 |
+| 目标 | 有效移位位置的全目录 CE；归一化共享 embedding，temperature=0.2 |
+| 验证 | 每轮，全目录，batch 64；Recall/NDCG@10/20 |
+| 选择 | 最大验证 NDCG@10；相同分数保留较早轮次 |
+
+30 轮是预先设置的首轮计算预算，不是已经找到的最优轮数。不依据测试分数调整
+轮次、学习率、序列长度或模型。现有数据约定的完整历史过滤、稳定同分排序、
+零频目标保留和切片保持不变；模型输入形状与关键路径见笔记 11。
+
+## 服务器命令
+
+在现有服务器仓库和 reference 环境中执行：
+
+```bash
+cd "$HOME/AgenticRec"
+git pull --ff-only
+source /opt/conda/etc/profile.d/conda.sh
+conda activate "$HOME/conda-envs/agenticrec-hstu-reference"
+git status --short --branch
+git log -1 --oneline
+nvidia-smi
+python -m src.run_hstu_microlens train --config configs/hstu-microlens-train-server.json
+```
+
+代码没有变化，已通过的 33 个测试无需因为本次说明更新而重复运行。
+启动前确认服务器没有源代码改动、设备可用；环境名称不代表实际分配。
+运行期间保持终端会话和代码/配置版本稳定，不同时启动另一个训练。
+
+每轮应打印 `Epoch n/30`、训练损失、固定训练 batch probe 和验证 NDCG@10。
+这里训练损失是按有效预测位置平均，验证指标是按用户平均；probe 只是一个固定
+训练 batch，不能代替全量验证。无需损失或验证指标逐轮单调改善。
+
+## 产物、通过标准与恢复
+
+独立目录：`runs/hstu-microlens/<UTC时间>/`。每个完成的轮次写入：
+
+- `results.json`：每轮训练/验证及切片、选择结果、代码/数据/配置/环境身份。
+- `best.pt`：验证 NDCG@10 选择的模型与优化器状态及 RNG。
+- `last.pt`：最近完整轮次的状态，用于同版本继续训练。
+- `config.json`：本次配置快照。
+
+正常结束为 epoch 30、`MicroLens HSTU train: PASS`，结果中应有 30 条 history、
+验证 all 组 50,000 用户、train_users=50,000、evaluation_users=50,000，
+且检查点输出一致、参数更新和数据哈希门禁通过。PASS 表示执行与检查成功，
+不以胜过 ItemCF 为运行成功条件。全量模式记录 probe 是否下降，但不以此单个
+batch 的下降作为质量门槛。
+
+请返回训练末尾输出、结果路径，之后再读取 best_epoch、best_score、完整验证
+指标、显存和切片。先与 ItemCF 验证 NDCG@10=0.024495、Recall@10=0.04804
+比较；还需看其他 cutoff 和分组，再决定是否固定配置或进行有限验证集调参。
+不预设 HSTU 一定优于 ItemCF，不用 ML-1M 分数替代此实验。
+
+若中断，保留原目录的 `last.pt` 与对应 `best.pt`，在相同代码、配置和运行
+环境继续：
+
+```bash
+MICROLENS_PREVIOUS_RUN="runs/hstu-microlens/<中断训练的实际UTC目录>"
+python -m src.run_hstu_microlens train --config configs/hstu-microlens-train-server.json --resume "$MICROLENS_PREVIOUS_RUN/last.pt"
+```
+
+占位符须替换为实际路径。继续执行会创建新目录，并继承此前完整轮次的 history
+和最佳模型。只支持完整轮次边界恢复，半轮进度会丢弃。训练期间不要拉取新提交，
+因为入口会核对 Git、源码哈希、配置、数据与运行环境。合成 CPU 恢复一致性测试
+已通过；真实数据的独立中断/恢复仍无回传记录。
+
+**本次命令不会评估测试集。** 等验证分析和设置冻结后，再对选定的 best.pt
+显式执行测试。全量结果、架构收益、泛化改进及性能结论均待服务器实验返回。

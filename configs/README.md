@@ -16,7 +16,7 @@ ranking protocol. Catalog size comes from `item_mapping.json`, not model config.
 | Configuration | Purpose |
 |---|---|
 | `hstu-microlens-smoke-server.json` | Next server gate: FP32, batch 32, 3 epochs, 1,024 seeded training and validation users each |
-| `hstu-microlens-train-server.json` | Draft full-data run: 30 epochs, validation NDCG@10 selection; review after smoke results |
+| `hstu-microlens-train-server.json` | First full-data candidate after passed smoke/resource review: 30 epochs, fresh seed 42, validation NDCG@10 selection |
 | `hstu-microlens-debug.json` | Optional tiny CPU debugging on 16 real-data users; not a benchmark |
 
 The initial training objective is full-catalog cross entropy at observed shifted
