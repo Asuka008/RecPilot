@@ -368,7 +368,7 @@ Mean/reference parameter counts were 1,230,144 / 1,273,406. Training loss fell
 10.029359 -> 7.695507, probe 9.183881 -> 6.918766, and validation NDCG@10
 0.000836 -> 0.006182. PASS enforces embedding updates, reduced probe loss,
 exact restored outputs and unchanged data hashes. Full resource/runtime fields
-and the 12 focused CPU test completion have not been returned.
+were initially unreported; the user subsequently confirmed all 18 focused tests OK.
 
 The user also reported the full 30-epoch mean-control train PASS at
 `runs/mean-pooling/20261022T160521830353Z/results.json`.
@@ -377,7 +377,7 @@ versus raw HSTU 0.03772422803068947 at epoch 28. HSTU is approximately 27.23%
 higher relative to Mean. Final Mean loss was 8.059710; final validation NDCG@10
 was 0.029334. This is a single-seed matched-recipe comparison, not a pure
 attention/order ablation or a significance claim. The next user report supplies full precision, Mean slices and resources below;
-focused CPU test completion remains unreported.
+focused CPU tests were subsequently confirmed OK by the user.
 
 The user subsequently returned the exact Mean validation score
 0.02965074791224214 and slices: frequency 1-5 NDCG@10=0.0058661551,
@@ -423,8 +423,8 @@ Recall@20 is 0.00830665398/0.03191489362/0.13453708621 (96/615/2280 hits).
 Zero-frequency remains zero. Mean loses to raw HSTU in every test history-length
 group, but wins in the two lower observed target-frequency groups, confirming
 validation observations. Actual paired configurations, users, data, sources and
-best checkpoint passed the preflight. Eighteen focused server test completion
-and this evaluation's resource fields have not been returned.
+best checkpoint passed the preflight. The user subsequently confirmed all 18 focused server tests OK. This evaluation's
+resource fields have not been returned.
 
 The Mean real-data control record is complete; do not repeat training or test
 without a concrete reason. Retain HSTU and keep all reported test recipes frozen.
