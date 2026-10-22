@@ -8,12 +8,14 @@ before training it on MicroLens.
 **Current milestone:** the official HSTU recipe completed 101 epochs on
 MovieLens-1M, with final metrics close to the upstream reference. MicroLens
 Popularity and ItemCF results are available. The MicroLens HSTU training and
-evaluation entry point is implemented; its server integration gate is next.
+evaluation integration passed 33 focused server tests and a three-epoch real-data
+smoke run. Resource review and full-data HSTU training are next.
 
 ## Verified progress
 
 Status as of **2026-10-21**. Completed server results are based on outputs
-returned by the project owner; the new MicroLens integration awaits server checks.
+returned by the project owner. MicroLens integration tests and smoke training
+passed; full-data HSTU training remains pending.
 
 | Milestone | Status and evidence |
 |---|---|
@@ -24,7 +26,7 @@ returned by the project owner; the new MicroLens integration awaits server check
 | Portable dense HSTU block | Twelve server cases passed output and gradient comparisons against official blocks, covering position-only and time/position bias |
 | Pure-ID HSTU training components | Four-user synthetic fit reduced fixed-task loss by 99.3%; checkpoint output, RNG, and next-step continuation checks passed |
 | Official MovieLens-1M recipe | Batch 32/128 smoke checks and batch 128, 101-epoch training completed on the server |
-| MicroLens HSTU baseline | Training, batched shared evaluation and epoch-boundary continuation implemented; 16 tiny baseline/configuration tests and syntax checks passed locally; neural tests and server smoke run pending |
+| MicroLens HSTU baseline | 33 focused server CPU tests and three-epoch real-data smoke run passed; full-data training and quality comparison pending |
 | Feature improvements and recommendation service | Planned; no measured results yet |
 
 The portable implementation is in [src/models/hstu.py](src/models/hstu.py) and
@@ -89,7 +91,7 @@ The ML-1M and MicroLens results use different datasets and protocols and should
 not be compared as competing model scores. In particular, the official recipe
 uses its temporal bias and next-event timestamps; the MicroLens integration
 uses position-only bias and full-catalog cross entropy, rather than the official
-sampled-softmax objective. Its real-data behavior remains to be verified.
+sampled-softmax objective. Its three-epoch real-data smoke run passed; full-data quality remains to be measured.
 
 ## Data contract
 
@@ -184,7 +186,7 @@ The source checkout defaults to
 `~/upstream/generative-recommenders-reference`; retrieve and verify it with
 `python scripts/prepare_hstu_reference.py source` before these checks.
 
-### MicroLens HSTU integration gate (next)
+### MicroLens HSTU integration gate (passed; resource review next)
 
 Synchronize the code through Git first, then use the existing reference environment:
 
@@ -194,6 +196,13 @@ nvidia-smi
 python -m unittest tests.test_dataset tests.test_baselines tests.test_hstu_training tests.test_microlens_config tests.test_microlens_training -v
 python -m src.run_hstu_microlens train --config configs/hstu-microlens-smoke-server.json
 ```
+
+Reported server result: **33 tests passed in 11.080s** and
+`MicroLens HSTU train: PASS`. Training loss across the three epochs was
+9.946178, 8.179191, 7.135582; fixed-batch probe loss was 8.586332, 7.200485,
+6.391037; validation NDCG@10 was 0.001397, 0.004264, 0.005421.
+Result: `runs/hstu-microlens-smoke/20261022T022602941154Z/results.json`.
+The actual device, peak memory and report details are awaiting review.
 
 The smoke run uses 1,024 seeded training users, 1,024 seeded validation users,
 the full item catalog, and three FP32 epochs. Expect `MicroLens HSTU train: PASS`,
@@ -280,9 +289,11 @@ runs/             Generated experiment artifacts, ignored by Git
 
 ## Next milestone
 
-Verify the implemented MicroLens HSTU integration on the server, including
-focused tests, a short real-data run and epoch-boundary continuation. Then review
-the full-data settings, train and select on validation before a fixed test run.
+The 33 focused CPU tests (including synthetic epoch-boundary continuation) and
+real-data smoke run passed on the server. Inspect the smoke report hardware,
+memory and checks, then review full-data settings and select on validation before
+a fixed test run. Real-data interrupted-run continuation has not been separately
+reported.
 Compare against ItemCF and diagnose results by history length and target-item
 training frequency, including zero-occurrence targets.
 

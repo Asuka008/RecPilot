@@ -1,7 +1,7 @@
 # 11：把纯 ID HSTU 接到 MicroLens
 
-更新日期：2026-10-21。**实现已完成；本地通过 16 个微型基线/配置测试和语法检查。
-下述神经网络 CPU 测试、真实数据训练、CUDA 与恢复检查均待服务器验证。**
+更新日期：2026-10-21。**33 个聚焦服务器 CPU 测试与三轮真实数据短训练已通过。
+实际设备、显存和报告字段待核对，全量训练仍待执行。**
 
 ## 当前阶段与目标
 
@@ -166,5 +166,45 @@ git diff --check
 ```
 
 配置测试在系统 Python 通过；16 个合并测试使用应用自带的 NumPy 环境通过。
-本机没有 PyTorch，因此未在 Mac 执行神经网络测试；服务器执行
-仍是本里程碑的必需验证。教学笔记和进度说明的更新不代表该门禁已通过。
+本机没有 PyTorch，因此未在 Mac 执行神经网络测试。后续用户回传服务器测试和短训练 PASS，
+见下方记录；本地没有读取或独立复核服务器原始产物。
+
+## 服务器通过记录（本地日期 2026-10-21）
+
+用户回传聚焦测试 `Ran 33 tests in 11.080s`、`OK`，随后使用
+`configs/hstu-microlens-smoke-server.json` 完成三轮训练并返回
+`MicroLens HSTU train: PASS`。结果路径：
+`runs/hstu-microlens-smoke/20261022T022602941154Z/results.json`。
+路径时间为 UTC，不将其直接当作用户本地日期。
+
+| 轮次 | 训练损失 | 固定训练 batch probe 损失 | 验证 NDCG@10 |
+|---|---:|---:|---:|
+| 1 | 9.946178 | 8.586332 | 0.001397 |
+| 2 | 8.179191 | 7.200485 | 0.004264 |
+| 3 | 7.135582 | 6.391037 | 0.005421 |
+
+这说明训练入口在这次短训练中能够学习，不能拿 1,024 用户的结果与全量
+ItemCF 直接比较。33 个 CPU 测试包含合成数据带 dropout 的按轮次恢复一致性；
+真实数据的单独中断/恢复命令尚无用户回传结果。按当前入口的 PASS 定义，
+参数更新、有限梯度、检查点加载输出一致、probe 下降和数据哈希不变门禁通过；
+实际字段仍需读取报告确认。不要将之前 A100 MIG 的设备记录自动套用到此次运行。
+
+下一步先读取这次报告，暂不重跑短训练或启动全量训练：
+
+```bash
+python - <<'PY'
+import json
+from pathlib import Path
+p = Path("runs/hstu-microlens-smoke/20261022T022602941154Z/results.json")
+r = json.loads(p.read_text())
+summary = {k: r.get(k) for k in ("status", "data", "checks", "checksums_unchanged", "elapsed_seconds")}
+summary["git"] = r["provenance"]["git"]
+summary["runtime"] = {k: r["runtime"].get(k) for k in ("torch", "cuda_runtime", "device", "gpu", "gpu_total_memory_bytes", "dtype", "tf32")}
+summary["memory_gib"] = {k: round(v / 1024**3, 3) for k, v in r.get("memory_bytes", {}).items()}
+print(json.dumps(summary, indent=2))
+PY
+```
+
+核对实际 GPU/分配显存、峰值 allocated/reserved、Git/数据用户数和 checks 后，
+再审核全量 batch 32、30 轮等设置。全量训练从新初始化开始，不从 smoke 的
+1,024 用户检查点继续；训练只按验证 NDCG@10 选模型，测试仍需冻结后显式执行。

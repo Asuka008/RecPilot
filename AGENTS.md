@@ -152,14 +152,16 @@ This milestone has been implemented and verified for the current MicroLens-50K
 input. The sequential Dataset and DataLoader contract passed its eight server
 CPU tests on 2026-10-18. All three processed-data checksums also matched the Mac
 on that date. Shared evaluation and simple baselines subsequently passed server verification;
-the current pending gate is MicroLens HSTU integration verification.
+the MicroLens HSTU integration tests and three-epoch smoke run subsequently
+passed on the server; resource review is next.
 
 The SASRec Dataset and DataLoader contract has been fully implemented and its
 eight focused CPU unit tests passed locally on 2026-10-05 and on the server
 at commit a129baa on 2026-10-18. The tests use synthetic records and do not
 verify the transferred MicroLens files or CUDA behavior. Pure-ID HSTU and learned ID embeddings have since been implemented and verified
 with synthetic tasks and the separate official ML-1M experiment. MicroLens HSTU
-training/evaluation is implemented but awaits server verification. No title
+training/evaluation passed its 33 focused server CPU tests and three-epoch
+real-data smoke run; full-data training remains pending. No title
 embedding table or content fusion has been implemented.
 
 ## Locally verified data findings (2026-10-16)
@@ -274,14 +276,21 @@ server run artifacts have not been independently inspected from this Mac.
   configurations. It reuses the existing Dataset, position-only IDHSTU and shared
   full-catalog ranking rules. The initial loss is full-catalog cross entropy,
   excluding padding; it is an adaptation, not the official sampled-softmax recipe.
-- Sixteen tiny baseline/configuration tests and syntax checks passed locally. Neural CPU tests,
-  checkpoint continuation and real-data smoke training await server verification.
-  No MicroLens HSTU score or performance improvement is claimed.
+- Sixteen tiny baseline/configuration tests and syntax checks passed locally.
+  The user then reported all 33 focused server CPU tests passing (11.080s),
+  including the synthetic epoch-boundary continuation check. The MicroLens
+  three-epoch smoke run returned PASS at
+  `runs/hstu-microlens-smoke/20261022T022602941154Z/results.json`.
+  Training loss was 9.946178 -> 8.179191 -> 7.135582; fixed training-batch probe
+  loss was 8.586332 -> 7.200485 -> 6.391037; validation NDCG@10 was
+  0.001397 -> 0.004264 -> 0.005421. The smoke uses 1,024 training users and
+  1,024 validation users, so it is not a full-data baseline comparison.
+  Actual runtime/device, peak memory, checks and provenance fields from this
+  result file have not yet been returned. Full-data training remains pending.
 
-Next action: on the server, run the focused tests and the three-epoch MicroLens
-smoke configuration in `docs/learning-11-microlens-hstu.md`. Inspect actual device,
-probe loss, gradients, checkpoint recovery, metrics, and peak allocated/reserved
-memory. Do not automatically start the full 30-epoch draft configuration or test
+Next action: inspect the completed smoke report runtime, checks, data identity,
+elapsed time and peak allocated/reserved memory using the command in
+`docs/learning-11-microlens-hstu.md`, then review full-data training settings. Do not automatically start the full 30-epoch draft configuration or test
 selection. Training selects only by validation; test requires an explicit frozen
 checkpoint evaluation. Code/data/runtime identities must match for epoch-boundary
 continuation. Keep the original `last.pt` and sibling `best.pt` together.
