@@ -1,0 +1,14 @@
+{
+  "titles_csv": "data/raw/MicroLens-50k_titles.csv",
+  "data_dir": "data/processed",
+  "output_dir": "runs/title-features-minilm",
+  "model_id": "sentence-transformers/all-MiniLM-L6-v2",
+  "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+  "transformers_version": "4.57.1",
+  "feature_dim": 384,
+  "max_length": 256,
+  "batch_size": 32,
+  "smoke_items": 64,
+  "device": "cuda:0",
+  "seed": 42
+}

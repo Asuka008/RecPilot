@@ -32,7 +32,8 @@ passed, and the first full-data training and test evaluations returned PASS.
 | Official MovieLens-1M recipe | Batch 32/128 smoke checks and batch 128, 101-epoch training completed on the server |
 | MicroLens HSTU baseline | Training and frozen test evaluation passed; test Recall@10=0.04882, NDCG@10=0.024729; validation-selected checkpoint from the first 30-epoch candidate |
 | Prefix-mean neural control | Implemented with matched settings, shared scoring/objective and isolated source identity; 5 config tests passed locally; server smoke and full 30-epoch training PASS; best validation NDCG@10 about 0.029651; Mean beats raw HSTU on lower-frequency validation groups; paired identity audit and frozen test PASS (NDCG@10=0.017816); all 18 focused server tests confirmed OK by the user |
-| Content features and recommendation service | Planned; no measured results yet |
+| Frozen title features | Alignment audit and 11 lightweight tests passed locally; pinned MiniLM cache pipeline implemented; server preflight/inference pending; no fusion results |
+| Recommendation service | Planned; no measured results yet |
 
 The portable implementation is in [src/models/hstu.py](src/models/hstu.py) and
 [src/models/id_hstu.py](src/models/id_hstu.py). Block comparisons and synthetic
@@ -347,6 +348,7 @@ configs/          Experiment settings and pinned reference manifests
 src/data/         Sequential Dataset and DataLoader
 src/models/       Portable dense HSTU block and pure-ID stack
 controls/         Isolated prefix-mean neural control and matched experiment runner
+title_features/   Frozen title alignment, encoding and verified cache loading
 src/preprocess.py MicroLens preprocessing
 src/evaluation.py Shared full-catalog ranking metrics
 src/baselines.py  Popularity and sparse cosine ItemCF
@@ -395,3 +397,23 @@ SASRec comparison is optional; no superiority over SASRec is claimed. Agents are
 outside the current scope. A recommendation service and serving performance
 measurements remain future work; offline ranking results do not establish online
 CTR, watch-time lift, or production deployment.
+
+
+### Next experiment: frozen title features
+
+The complete preparation pipeline is implemented, with no changes to historical
+model sources or configurations. The local audit aligned all 19,220 titles and
+11 lightweight checks passed. Actual encoder inference and recommendation gain
+remain unverified. Start on the server with:
+
+```bash
+python -m unittest tests.test_title_data tests.test_title_cache tests.test_title_preflight tests.test_title_encoder -v
+python scripts/prepare_title_features.py preflight
+```
+
+Expect 14 tests OK. The read-only preflight reports installed dependencies, current
+GPU and missing inputs; NEEDS_SETUP means review its report before installation
+or title transfer. It does not download the encoder. See
+[title feature note 19](docs/learning-19-frozen-title-features.md) for the pinned
+model, cache contract and later audit/smoke/build commands. No title fusion is
+implemented yet, and no gain is assumed.

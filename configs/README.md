@@ -58,3 +58,11 @@ initializer, not attention layers in the mean control. The only trainable tensor
 is the shared ID table. Start with the three-epoch server smoke, then review the
 full-data 30-epoch candidate. Both use raw cosine scoring and validation NDCG@10
 selection; see teaching note 17. Run with `python -m controls.run_mean_pooling`.
+
+
+`title-features-minilm-server.json` is a feature-preparation configuration, not
+an HSTU training recipe. It pins the encoder repository/revision, transformers
+version, 384-dimensional FP32 output, token truncation, batch size and device.
+Use `python scripts/prepare_title_features.py preflight` before environment
+changes. Then audit/smoke/build produce independent reports under runs/; the
+64-item smoke artifact is not a valid full cache. See teaching note 19.

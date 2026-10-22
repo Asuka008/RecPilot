@@ -431,5 +431,42 @@ without a concrete reason. Retain HSTU and keep all reported test recipes frozen
 A subsequent title-feature experiment remains optional and must be designed from
 prior validation evidence: frozen text encoder, aligned cached features, explicit
 history/candidate representations, ID-only/init/simple-fusion comparisons and
-validation-only selection. No title encoder, feature artifact or gain exists yet.
+validation-only selection. Frozen title-feature preparation is now implemented as
+described below; no actual encoded cache, fusion model or gain exists yet.
 Do not treat test feedback as a new tuning signal or claim significance from one seed.
+
+
+## Frozen title-feature preparation (2026-10-22)
+
+The user authorized the next stage after confirming all 18 mean-control tests OK.
+A complete, isolated title feature pipeline is implemented in `title_features/`
+and `scripts/prepare_title_features.py`, with audit/preflight/smoke/build actions.
+It does not change checkpoint-bound src/controls or any baseline training config.
+Config `title-features-minilm-server.json` pins all-MiniLM-L6-v2 revision
+1110a243fdf4706b3f48f1d95db1a4f5529b4d41, transformers 4.57.1, 384 dimensions,
+max 256 tokens, batch 32, FP32/eager attention and seed 42. The model stays frozen;
+attention-masked token mean pooling is normalized. Row 0 is zero; full cache
+shape is [19221,384]. Smoke caches cannot be loaded for training. Source/data/
+config/model snapshot/feature hashes, Git, versions, runtime and resource use
+are recorded. This is feature preparation only, not title fusion or evidence of gain.
+
+Local complete title audit PASS: 19220 CSV/catalog items, zero missing/blank/
+extra mapped titles, 87 duplicate-text excess rows; character min/median/max
+4/109/6293, 798 titles with non-ASCII and 88 with CJK characters. This is not
+language identification. Raw CSV SHA256 is
+244aad5380cbbe0fb43458cfcda5ebe820f534384602f80a64dbbcd07dd30e49;
+aligned normalized title digest is
+e4dee17e5a4fbdf31d79d1462ccc60411c81051e125c48ba28c7de86bbfdcdf7.
+Eleven lightweight alignment/config/cache/preflight tests passed locally; three
+PyTorch token-pooling checks and actual text inference await the server. No model
+was downloaded or executed on the Mac. Outputs remain ignored under runs/.
+
+Next action: run the 14 focused title tests and the read-only server preflight
+in teaching note 19. Preflight works even if title CSV is not yet transferred.
+Inspect package versions, Python/Conda/pip, torch/CUDA/GPU, pip check and scheduler
+before installing anything. A requirements file pins transformers only; final
+transitive versions await the actual environment. Do not replace verified torch
+or guess missing packages. Transfer titles separately if absent (Git ignores CSV).
+After environment/files are verified, audit then 64-item smoke, review it, then
+full cache build; only then implement downstream initialization/fusion with
+explicit history and candidate representations and validation-only selection.
