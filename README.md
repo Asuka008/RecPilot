@@ -10,8 +10,8 @@ MovieLens-1M, with final metrics close to the upstream reference. MicroLens
 Popularity and ItemCF results are available. The MicroLens HSTU training and
 evaluation integration passed 33 focused server tests and a three-epoch real-data
 smoke run. The first full-data HSTU candidate completed training and frozen
-test evaluation. Validation slices confirm a low-frequency regression; a frozen
-score-correction diagnostic is implemented and awaits server verification.
+test evaluation. A validation-only score correction selected alpha=0.5 and
+improved validation NDCG@10 by 6.95%; its fixed test evaluation is next.
 
 ## Verified progress
 
@@ -71,7 +71,8 @@ Validation Recall@20 is 0 for frequency 1-5 and 0.01010315 for frequency 6-20,
 versus ItemCF 0.04790749 and 0.06035440. The 21+ group reaches 0.21303345,
 versus ItemCF 0.09257406. Both reports' data hashes and group counts match.
 Full training took 1196.934s on A100 MIG 2g.20gb with peak PyTorch allocated/
-reserved memory 0.16010/0.22656 GiB. Remaining validation metrics are not yet shown.
+reserved memory 0.16010/0.22656 GiB. The audit also reproduced original validation
+Recall@10=0.07112 and NDCG@20=0.04544371132907886.
 The frozen test evaluation passed for all 50,000 users: Recall@10=0.04882,
 NDCG@10=0.02472889109808947, Recall@20=0.07238,
 NDCG@20=0.030686079403136588. Relative to fixed ItemCF, these increase by
@@ -89,6 +90,16 @@ L=32. This alone cannot explain all weak tail results. See
 Training run identity:
 `runs/hstu-microlens/20261022T023420952080Z/results.json`.
 Test run: `runs/hstu-microlens/20261022T030714112850Z/results.json`.
+
+### Frozen score correction (validation only so far)
+
+The predeclared alpha=[0,0.25,0.5,1] audit selected **alpha=0.5** on validation
+NDCG@10: **0.040344999048154036**, versus raw HSTU **0.03772422803068947**
+(+6.95%). Validation Recall@20 is 0.10616 versus 0.10176. The model weights are
+unchanged; the correction subtracts a fixed training-positive-frequency offset.
+The 1-5 target-frequency group still has zero hits, so this does not solve tail
+matching. The selected recipe's test metrics are pending. See
+[fixed score-test note 15](docs/learning-15-selected-score-test.md).
 
 ### Official HSTU on MovieLens-1M
 
@@ -341,21 +352,20 @@ runs/             Generated experiment artifacts, ignored by Git
 The 33 focused CPU tests (including synthetic epoch-boundary continuation) and
 real-data smoke run passed on the server. The resource report has been reviewed.
 The first full-data 30-epoch candidate and frozen test evaluation also passed.
-Validation slices and training resources have been reviewed. Run the new
-validation-only frozen score audit before choosing a model change:
+Validation score-correction results have been returned. Freeze alpha=0.5 and
+evaluate only the saved validation winner on test:
 
 ```bash
-python -m unittest tests.test_score_audit tests.test_score_audit_server -v
-python scripts/diagnose_hstu_scores.py --config configs/hstu-score-audit-server.json
+python -m unittest tests.test_score_selection tests.test_score_audit_server -v
+python scripts/evaluate_hstu_score_selection.py --config configs/hstu-score-selected-test-server.json
 ```
 
-It compares four training-frequency correction strengths, requires alpha=0 to
-reproduce the saved validation run, and records recommendation coverage and
-frequency shares. Seven tiny tests passed locally; neural end-to-end and actual
-server audit results are pending. No model weights or scoring code under src/
-were changed. Keep the first test result fixed. See
-[diagnosis note 14](docs/learning-14-validation-score-diagnosis.md). Real-data interrupted-run continuation has not been separately
-reported.
+The entry point verifies a completed validation report and input identities,
+reconstructs its winner, and permits no test-time alpha override. Eight small
+tests passed locally; the extended server pipeline test and corrected test scores
+are pending. The original model and test result stay fixed. Real-data interrupted
+training continuation remains unreported. See
+[selection and test note 15](docs/learning-15-selected-score-test.md).
 Compare against ItemCF and diagnose results by history length and target-item
 training frequency, including zero-occurrence targets.
 

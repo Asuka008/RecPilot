@@ -307,7 +307,9 @@ server run artifacts have not been independently inspected from this Mac.
   21+ is 0.21303345 vs 0.09257406. The regression is established on validation,
   not just test. Full-training runtime was A100 MIG 2g.20gb, 1196.934s,
   peak allocated/reserved 171903488/243269632 bytes (0.16010/0.22656 GiB).
-  Remaining exact validation metrics and full provenance fields are not shown.
+  The score audit later reproduced all four uncorrected validation metrics:
+  Recall@10/20=0.07112/0.10176 and NDCG@10/20=
+  0.03772422803068947/0.04544371132907886. Full provenance fields are not shown.
 - The user returned frozen best.pt test evaluation PASS at
   `runs/hstu-microlens/20261022T030714112850Z/results.json`, all 50,000 users.
   Recall@10/20=0.04882/0.07238; NDCG@10/20=
@@ -326,17 +328,23 @@ server run artifacts have not been independently inspected from this Mac.
   synthetic tests and full local data audit passed; server replay is pending.
   See `scripts/audit_hstu_supervision.py` and teaching note 13.
 
-Next action: server-verify the new frozen-checkpoint validation score audit,
-`scripts/diagnose_hstu_scores.py`, with `configs/hstu-score-audit-server.json`.
-It compares alpha=[0,0.25,0.5,1], smoothing=1, cosine minus
-training_temperature*alpha*log(retained_positive_count+smoothing), and records
-ranking metrics plus recommendation coverage/frequency shares. Correction counts
-come only from retained training labels; evaluation groups still use full-history
-counts. Alpha=0 must reproduce every saved validation metric/group within 1e-12.
-Choose by overall validation NDCG@10, ties smaller alpha. No test switch, training
-or checkpoint mutation is allowed. This is a diagnostic hypothesis, not a proven
-fix. Seven tiny NumPy/pure-Python tests and syntax checks passed locally; the
-new server CPU end-to-end test and actual validation audit remain pending.
-See `docs/learning-14-validation-score-diagnosis.md`. Keep the first model/config/
-test record frozen. Do not select alpha or future improvements from test scores.
+- The user returned four validation score-audit variants at
+  `runs/hstu-score-audit/20261022T145804815608Z/results.json`. Alpha=0 exactly
+  reproduces the frozen validation metrics. Predeclared validation NDCG@10
+  selects alpha=0.5: 0.040344999048154036 (+6.95% vs raw HSTU), Recall@20=0.10616.
+  Alpha=1 worsens overall metrics. Every alpha still has zero 1-5-frequency
+  target hits; alpha=0.5 raises 6-20 Recall@20 to 0.01523407, still below ItemCF.
+  The final PASS line and diagnostic resource fields were not included in the
+  pasted output; the fixed test entry point must verify the report status.
+
+Next action: freeze the selected correction recipe and server-verify/test only
+that recipe using `scripts/evaluate_hstu_score_selection.py` and
+`configs/hstu-score-selected-test-server.json`. There is no alpha override or
+test-time grid. Recompute the validation winner and verify report status, anchor,
+script/model/checkpoint/data identities before evaluating one test recipe.
+The original `src/` and diagnostic script remain unchanged for old identities.
+Eight small NumPy tests and syntax checks passed locally; the extended server
+CPU pipeline test and corrected test metrics are pending. See teaching note 15.
+Do not adjust alpha from test. The initial model/test record remains frozen;
+this is a scoring improvement candidate, not a solution to low-frequency matching.
 Masked mean pooling and content changes remain unimplemented hypotheses.

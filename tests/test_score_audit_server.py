@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import unittest
 
 from scripts.diagnose_hstu_scores import run_audit
+from scripts.evaluate_hstu_score_selection import run_selected_test
 from src.run_hstu_microlens import run
 from tests.test_microlens_training import ROOT, write_data
 
@@ -39,7 +40,7 @@ class ScoreAuditServerTest(unittest.TestCase):
             audit_path.write_text(json.dumps(audit))
             with redirect_stdout(captured):
                 try:
-                    report, _ = run_audit(audit_path)
+                    report, audit_dir = run_audit(audit_path)
                 except SystemExit:
                     self.fail(captured.getvalue())
             self.assertEqual(report["status"], "PASS")
@@ -50,6 +51,21 @@ class ScoreAuditServerTest(unittest.TestCase):
                 self.assertEqual(variant["recommendations"]["slots"], 4)
                 self.assertEqual(sum(variant["recommendations"]["slots_by_history_frequency"].values()), 4)
                 self.assertEqual(variant["evaluation"]["groups_by_target_train_frequency"]["all"]["users"], 2)
+            test_config = root / "selected-test.json"
+            test_config.write_text(json.dumps({"validation_report": str(audit_dir / "results.json"),
+                                               "output_dir": str(root / "selected-test")}))
+            with redirect_stdout(captured):
+                try:
+                    test_report, _ = run_selected_test(test_config)
+                except SystemExit:
+                    self.fail(captured.getvalue())
+            self.assertEqual(test_report["status"], "PASS")
+            self.assertEqual(test_report["recipe"]["alpha"], report["selection"]["alpha"])
+            self.assertEqual(test_report["evaluation"]["split"], "test")
+            self.assertEqual(test_report["evaluation"]["groups_by_target_train_frequency"]["all"]["users"], 2)
+            self.assertTrue(test_report["checks"]["one_validation_selected_recipe"])
+            self.assertTrue(test_report["checks"]["inputs_unchanged"])
+            self.assertNotIn("variants", test_report)
             reference_path = training_dir / "results.json"
             reference = json.loads(reference_path.read_text())
             best = next(row for row in reference["history"] if row["epoch"] == reference["selection"]["best_epoch"])

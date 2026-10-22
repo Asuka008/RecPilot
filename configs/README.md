@@ -40,4 +40,11 @@ validation-only alpha=[0,0.25,0.5,1], smoothing=1. It applies frequency correcti
 using retained positive training labels, keeps all evaluation groups unchanged,
 and requires the zero-correction anchor to reproduce the frozen validation run.
 Run `python scripts/diagnose_hstu_scores.py --config configs/hstu-score-audit-server.json`.
-This is an unverified diagnostic hypothesis; do not use test data to select alpha.
+The returned validation grid selects alpha=0.5; its test gain is unverified. Do not use test data to select alpha.
+
+
+`hstu-score-selected-test-server.json` names the completed validation report and
+an output directory only. Its evaluator verifies the saved validation winner and
+runs that one correction recipe on test; it rejects alpha overrides, failed
+validation status, or changed scoring/model/checkpoint/data identities.
+See `docs/learning-15-selected-score-test.md` for the server commands.
