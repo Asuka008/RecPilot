@@ -370,10 +370,17 @@ Mean/reference parameter counts were 1,230,144 / 1,273,406. Training loss fell
 exact restored outputs and unchanged data hashes. Full resource/runtime fields
 and the 12 focused CPU test completion have not been returned.
 
-Next action: confirm the 12 focused CPU checks pass, inspect current GPU allocation,
-then run the full mean-control config (seed 42, 30 epochs, batch 32/64 and matched
-reference hyperparameters). Primary comparison must use both uncorrected models
-and select the checkpoint on validation NDCG@10. No full mean-control quality or
-speed claim is made. Do not select settings from test. Raw/corrected HSTU records
-remain frozen; content fusion, multi-seed robustness and real-data interrupted
-continuation remain outside the completed verification record.
+The user also reported the full 30-epoch mean-control train PASS at
+`runs/mean-pooling/20261022T160521830353Z/results.json`.
+Best validation NDCG@10 was approximately 0.029651 at epoch 19 (log-rounded),
+versus raw HSTU 0.03772422803068947 at epoch 28. HSTU is approximately 27.23%
+higher relative to Mean. Final Mean loss was 8.059710; final validation NDCG@10
+was 0.029334. This is a single-seed matched-recipe comparison, not a pure
+attention/order ablation or a significance claim. Full precision, slices, current
+GPU, time/memory and focused CPU test completion remain unreported.
+
+Next action: inspect saved best-validation slices and report identities using
+teaching note 17, without retraining or testing. Keep raw/corrected HSTU frozen.
+No mean-control speed claim is made. Do not select settings from test. Content
+fusion, multi-seed robustness and real-data interrupted continuation remain
+outside the completed verification record.

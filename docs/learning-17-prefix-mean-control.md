@@ -2,7 +2,7 @@
 
 日期：2026-10-22。**实现、配置与服务器验证入口已完成；本地 5 个纯 Python
 配置测试、语法与入口检查通过。用户已返回三轮服务器 smoke PASS；12 个聚焦
-CPU 测试的结尾尚未返回，全量对照待运行。当前没有完整效果或性能结论。**
+CPU 测试的结尾尚未返回，30 轮全量训练也已返回 PASS。验证总体已有单种子结果，分组与资源仍待核对。**
 
 ## 这个对照回答什么
 
@@ -152,7 +152,7 @@ python -m controls.run_mean_pooling train --config configs/mean-pooling-train-se
 
 本地没有 PyTorch，未执行模型或 DataLoader。已完成的本地检查是 5 个配置
 测试、源码编译、CLI help、diff 格式，以及共享 src/旧诊断脚本未改动检查。
-服务器 smoke 已通过；聚焦 CPU 测试输出、完整资源报告、全量结果与实际性能仍待核对。
+服务器 smoke 已通过；聚焦 CPU 测试输出、完整资源报告、全量分组与实际性能仍待核对。
 
 
 ## 服务器 smoke 记录（2026-10-22）
@@ -175,3 +175,57 @@ PASS 按入口要求包含参数更新、固定 probe 下降、恢复输出精�
 下一步确认 12 个 CPU 测试 OK，检查当前设备，再用现有完整配置训练 30 轮。
 以验证 NDCG@10 选择 best，比较未校正 HSTU 的 0.03772422803068947，
 同时查看目标频次/历史长度切片；先不运行测试集，也不根据测试指标调参。
+
+
+## 全量训练记录（2026-10-22）
+
+用户返回 30 轮 `Mean pooling train: PASS`，报告路径为
+`runs/mean-pooling/20261022T160521830353Z/results.json`。
+训练 loss 从 9.325970 降至 8.059710，最佳验证 NDCG@10 出现在第 19 轮，
+日志舍入值为 0.029651；最后一轮为 0.029334。选择 best.pt，而非 last.pt。
+
+| 未校正模型 | 最佳轮次 | 验证 NDCG@10 |
+| --- | --- | --- |
+| PrefixMean | 19 | 约 0.029651 |
+| HSTU | 28 | 0.03772422803068947 |
+
+按日志舍入值计算，HSTU 比 Mean 高约 27.23%，Mean 比 HSTU 低约 21.40%。
+这是同一配方预算下复杂编码器有收益的单种子证据，不能单独归因于顺序或注意力，
+也不能代替多种子显著性验证。Mean 训练损失更低但排名较差，说明训练 CE 与
+验证 Top-K 指标不等价；不据此单独断言过拟合。
+
+下一步读取两个训练报告，核对身份后比较各自最佳轮次的验证切片。
+不需要重跑训练或查看测试集。CPU 合约测试结尾及完整资源字段尚未返回。
+
+```bash
+python - <<'PYCOMPARE'
+import json
+from pathlib import Path
+
+paths = {
+    "HSTU": "runs/hstu-microlens/20261022T023420952080Z/results.json",
+    "Mean": "runs/mean-pooling/20261022T160521830353Z/results.json",
+}
+reports = {name: json.loads(Path(path).read_text()) for name, path in paths.items()}
+h, m = reports["HSTU"], reports["Mean"]
+for key in ("data_id", "data_sha256", "train_users_sha256", "eval_users_sha256"):
+    assert h["provenance"][key] == m["provenance"][key], key
+assert h["provenance"]["source_id"] == m["provenance"]["shared_source_id"]
+best = {}
+for name, r in reports.items():
+    assert r["status"] == "PASS" and r["checksums_unchanged"]
+    assert r["selection"]["split"] == "val"
+    best[name] = next(row["validation"] for row in r["history"]
+                      if row["epoch"] == r["selection"]["best_epoch"])
+    print(name, "selection:", r["selection"])
+    print(name, "resources:", r.get("elapsed_seconds"), r.get("memory_bytes"), r["runtime"].get("gpu"))
+    print(name, "checks:", r.get("checks"))
+for axis in ("groups_by_history_length", "groups_by_target_train_frequency"):
+    print(axis, "group users HSTU_N10 Mean_N10 HSTU_R20 Mean_R20")
+    for group, x in best["HSTU"][axis].items():
+        y = best["Mean"][axis][group]
+        assert x["users"] == y["users"]
+        print(group, x["users"], x["metrics"]["NDCG@10"], y["metrics"]["NDCG@10"],
+              x["metrics"]["Recall@20"], y["metrics"]["Recall@20"])
+PYCOMPARE
+```
