@@ -1,0 +1,31 @@
+{
+  "mode": "full",
+  "data_dir": "data/processed",
+  "output_dir": "runs/hstu-microlens",
+  "device": "cuda:0",
+  "seed": 42,
+  "model": {
+    "sequence_length": 32,
+    "embedding_dim": 64,
+    "attention_dim": 32,
+    "linear_dim": 32,
+    "num_heads": 2,
+    "num_blocks": 2,
+    "dropout": 0.1
+  },
+  "epochs": 30,
+  "batch_size": 32,
+  "eval_batch_size": 64,
+  "num_workers": 0,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "temperature": 0.2,
+  "gradient_clip_norm": 1.0,
+  "ks": [
+    10,
+    20
+  ],
+  "selection_metric": "NDCG@10",
+  "train_users": null,
+  "eval_users": null
+}

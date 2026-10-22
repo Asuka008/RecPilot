@@ -7,11 +7,13 @@ before training it on MicroLens.
 
 **Current milestone:** the official HSTU recipe completed 101 epochs on
 MovieLens-1M, with final metrics close to the upstream reference. MicroLens
-Popularity and ItemCF results are available; MicroLens HSTU training is next.
+Popularity and ItemCF results are available. The MicroLens HSTU training and
+evaluation entry point is implemented; its server integration gate is next.
 
 ## Verified progress
 
-Status as of **2026-10-19**, based on server outputs returned by the project owner.
+Status as of **2026-10-21**. Completed server results are based on outputs
+returned by the project owner; the new MicroLens integration awaits server checks.
 
 | Milestone | Status and evidence |
 |---|---|
@@ -22,7 +24,7 @@ Status as of **2026-10-19**, based on server outputs returned by the project own
 | Portable dense HSTU block | Twelve server cases passed output and gradient comparisons against official blocks, covering position-only and time/position bias |
 | Pure-ID HSTU training components | Four-user synthetic fit reduced fixed-task loss by 99.3%; checkpoint output, RNG, and next-step continuation checks passed |
 | Official MovieLens-1M recipe | Batch 32/128 smoke checks and batch 128, 101-epoch training completed on the server |
-| MicroLens HSTU baseline | Not yet integrated into a full training/evaluation experiment |
+| MicroLens HSTU baseline | Training, batched shared evaluation and epoch-boundary continuation implemented; 16 tiny baseline/configuration tests and syntax checks passed locally; neural tests and server smoke run pending |
 | Feature improvements and recommendation service | Planned; no measured results yet |
 
 The portable implementation is in [src/models/hstu.py](src/models/hstu.py) and
@@ -85,8 +87,9 @@ directories. These differences should accompany any reproduction claim.
 
 The ML-1M and MicroLens results use different datasets and protocols and should
 not be compared as competing model scores. In particular, the official recipe
-uses its temporal bias and next-event timestamps; the planned MicroLens baseline
-will start with position-only bias.
+uses its temporal bias and next-event timestamps; the MicroLens integration
+uses position-only bias and full-catalog cross entropy, rather than the official
+sampled-softmax objective. Its real-data behavior remains to be verified.
 
 ## Data contract
 
@@ -181,6 +184,32 @@ The source checkout defaults to
 `~/upstream/generative-recommenders-reference`; retrieve and verify it with
 `python scripts/prepare_hstu_reference.py source` before these checks.
 
+### MicroLens HSTU integration gate (next)
+
+Synchronize the code through Git first, then use the existing reference environment:
+
+```bash
+conda activate "$HOME/conda-envs/agenticrec-hstu-reference"
+nvidia-smi
+python -m unittest tests.test_dataset tests.test_baselines tests.test_hstu_training tests.test_microlens_config tests.test_microlens_training -v
+python -m src.run_hstu_microlens train --config configs/hstu-microlens-smoke-server.json
+```
+
+The smoke run uses 1,024 seeded training users, 1,024 seeded validation users,
+the full item catalog, and three FP32 epochs. Expect `MicroLens HSTU train: PASS`,
+finite training/validation values, a reduced fixed training-only probe loss,
+updated ID/HSTU weights, exact restored checkpoint outputs, and memory/provenance
+reports. Smoke metrics are not full-data quality results.
+
+The entry point supports epoch-boundary continuation with `--resume PATH/last.pt`;
+keep its original sibling `best.pt`. Every continuation writes a new run directory.
+The full-data 30-epoch configuration is a draft to review after smoke validation.
+Training selects checkpoints by validation NDCG@10 only. Explicit checkpoint
+evaluation uses `evaluate --config CONFIG --checkpoint PATH/best.pt --split val`
+(or `test` only after settings are frozen, using a full-data configuration).
+See [teaching note 11](docs/learning-11-microlens-hstu.md) for shapes, protocol,
+continuation checks and exact server commands.
+
 ### Official MovieLens-1M experiment
 
 The preparation action downloads **only ML-1M on the Linux server**, calls the
@@ -251,9 +280,9 @@ runs/             Generated experiment artifacts, ignored by Git
 
 ## Next milestone
 
-Integrate the pure-ID HSTU stack with the existing MicroLens Dataset and shared
-ranking protocol. Start with position-only bias, verify a short real-data training
-run, then train and select settings on validation data before a fixed test run.
+Verify the implemented MicroLens HSTU integration on the server, including
+focused tests, a short real-data run and epoch-boundary continuation. Then review
+the full-data settings, train and select on validation before a fixed test run.
 Compare against ItemCF and diagnose results by history length and target-item
 training frequency, including zero-occurrence targets.
 

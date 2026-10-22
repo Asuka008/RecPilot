@@ -12,11 +12,28 @@ import unittest
 import numpy as np
 
 from src.baselines import ItemCF, Popularity
-from src.evaluation import evaluate, rank_candidates, single_target_metrics
+from src.evaluation import RankingAccumulator, evaluate, rank_candidates, single_target_metrics
 from src.run_baselines import load_data
 
 
 class RankingTest(unittest.TestCase):
+    def test_group_boundaries_and_empty_denominators(self):
+        frequency = Counter({41: 0, 42: 1, 43: 5, 44: 6, 45: 20, 46: 21})
+        accumulator = RankingAccumulator([50], frequency)
+        for target, length in zip(range(41, 47), (5, 6, 10, 11, 20, 21)):
+            accumulator.add(np.zeros(51), list(range(1, length + 1)), target)
+        result = accumulator.result("val")
+        frequencies = result["groups_by_target_train_frequency"]
+        lengths = result["groups_by_history_length"]
+        self.assertEqual({name: group["users"] for name, group in frequencies.items()},
+                         {"all": 6, "0": 1, "1-5": 2, "6-20": 2, "21+": 1})
+        self.assertEqual({name: group["users"] for name, group in lengths.items()},
+                         {"all": 6, "1-5": 1, "6-10": 2, "11-20": 2, "21+": 1})
+        for groups in (frequencies, lengths):
+            self.assertTrue(all(group["metrics"]["Recall@50"] == 1 for group in groups.values()))
+        empty = RankingAccumulator([10], Counter()).result("val")
+        self.assertIsNone(empty["groups_by_history_length"]["all"]["metrics"]["Recall@10"])
+
     def test_hand_computed_metrics(self):
         metrics = single_target_metrics([3, 8, 6], 8, [1, 2, 10])
         self.assertEqual(metrics["Recall@1"], 0)

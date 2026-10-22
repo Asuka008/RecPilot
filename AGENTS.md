@@ -39,6 +39,16 @@ Use a Python 3.11 Conda prefix environment for the server baseline unless a late
 
 The persistent prefix bootstrap was verified on 2026-10-04: `/home/zichenl8/conda-envs/agenticrec-h200` contains Python 3.11.16 and pip 26.2.1 and occupied approximately 232 MiB before project libraries were installed. The server's `/home/zichenl8/AgenticRec` directory was empty at verification time and is reserved as the future Git checkout.
 
+The later 2026-10-10 inspection reported an A100 MIG allocation with 19968 MiB,
+not the intended H200. Reinspect the assigned GPU and installed stack before
+server execution; the environment name does not identify the actual device.
+On 2026-10-18, the user reported all eight Dataset CPU tests passing on the
+server at commit a129baa. All three processed-data file SHA-256 values matched the Mac on 2026-10-18,
+as reported by the user. Later server outputs verified Python 3.11.16, PyTorch
+2.10.0+cu128, FBGEMM-GPU 1.5.0, CUDA reference checks and official ML-1M
+training on A100-SXM4-80GB MIG 2g.20gb (19.50 GiB visible). These are historical
+results; inspect the actual allocation before every new experiment.
+
 Treat the `nvidia-smi` CUDA value as driver capability, not proof of the installed CUDA toolkit or the correct PyTorch build. Before creating or changing the server environment, ask for or inspect the server's Python, Conda, PyTorch, CUDA runtime, package-manager, and job-scheduler details. Do not guess an exact CUDA/PyTorch build from the screenshot alone.
 
 Execution policy:
@@ -61,6 +71,7 @@ Code and artifact synchronization policy:
 
 - Use Git as the source of truth for code, configuration, tests, and documentation.
 - Develop and commit on the Mac, push to a private remote, and update the server checkout with fast-forward pulls. Avoid editing the same source files independently on both machines.
+- After completing requested project changes and the appropriate local checks, commit and push task-related code, configuration, and documentation to the existing private remote automatically. The user authorized this default on 2026-10-21; do not ask them to repeat the push request. Preserve unrelated local changes and keep datasets, logs, checkpoints, environments, and secrets out of commits.
 - Do not commit raw datasets, processed datasets, checkpoints, run logs, credentials, or secrets to Git.
 - Transfer datasets and large artifacts separately with `rsync` or the server's designated shared/object storage.
 - Preserve and compare `metadata.json` and checksums after data transfer.
@@ -69,13 +80,34 @@ Code and artifact synchronization policy:
 
 ## Long-term objective
 
-Build an interview-ready, reproducible Agentic AI recommendation system on MicroLens data. The intended progression is:
+Build an interview-ready, reproducible HSTU-based video recommendation system
+on MicroLens data. The user prioritizes industrial relevance, reliable
+reproduction, and a defensible improvement over novelty by model name.
 
-1. Create a trustworthy sequential-recommendation dataset pipeline.
-2. Package the sequences as a PyTorch dataset and train a SASRec baseline.
-3. Add stronger sequential modeling such as HSTU only after the baseline is working.
-4. Explore visual/text features and multimodal fusion only after the interaction-only models are reproducible.
-5. Add agent-based ranking, reranking, or orchestration last, with a concrete purpose and measurable comparison to the non-agent baseline.
+The user revised the project direction on 2026-10-16. These decisions supersede
+the earlier SASRec-first and mandatory-agent progression:
+
+1. Finish server verification of the existing sequential Dataset contract.
+2. Establish shared offline ranking metrics and inexpensive Popularity/ItemCF baselines.
+3. Integrate a pure-ID HSTU baseline, using a pinned official/reference implementation and a portable reference path where practical.
+4. Diagnose errors and choose one improvement supported by experiments.
+5. Deliver reproducible experiments and a small measured recommendation service.
+
+Full SASRec reproduction is optional, not a prerequisite for HSTU. Reuse the
+existing Dataset classes even though their names contain `SASRec`; rename only
+when implementation work makes it useful. A claim of superiority over SASRec
+requires an actual comparison under the same evaluation protocol.
+
+Agents are outside the current scope. The target is automatic feed
+recommendation without requiring users to state requests. Titles and other
+content features are optional hypotheses, not committed improvements. ID
+embeddings can already learn semantic-related collaborative structure; adding
+text must earn its cost against a well-trained interaction-only baseline.
+
+HSTU is the selected backbone. OneRec, OpenOneRec, PinRec, and MTGR are reading
+references, not additional implementation milestones. Do not switch backbones
+merely because a newer paper appears. See `docs/project-roadmap.md` for the
+decision record, evidence, and proposed diagnostic experiments.
 
 Do not jump to a later stage merely because it is more novel. Each stage must produce a runnable, inspectable artifact and pass its validation criteria first.
 
@@ -112,44 +144,94 @@ The preprocessing milestone is complete only when all of the following are demon
 
 - User, item, and interaction counts can be reproduced.
 - At least one correctly ordered user sequence can be displayed.
-- The train/validation/test split preserves chronology and has no future-item leakage.
+- Each user's train/validation/test split preserves chronology and excludes that user's held-out target from its input history. This does not establish global-time leakage freedom across users.
 - Saved mappings can convert IDs in both directions.
 - A rerun on unchanged raw data produces identical outputs.
 
-This milestone has been implemented and verified for the current MicroLens-50K input. The next active stage is the SASRec baseline, beginning with the PyTorch dataset and DataLoader contract.
+This milestone has been implemented and verified for the current MicroLens-50K
+input. The sequential Dataset and DataLoader contract passed its eight server
+CPU tests on 2026-10-18. All three processed-data checksums also matched the Mac
+on that date. Shared evaluation and simple baselines subsequently passed server verification;
+the current pending gate is MicroLens HSTU integration verification.
 
 The SASRec Dataset and DataLoader contract has been fully implemented and its
-eight focused CPU unit tests passed locally on 2026-10-05. It still requires
-one server-side verification after PyTorch is installed in the persistent
-environment. The next implementation milestone after that verification is a
-popularity baseline plus offline ranking metrics, before the SASRec model.
+eight focused CPU unit tests passed locally on 2026-10-05 and on the server
+at commit a129baa on 2026-10-18. The tests use synthetic records and do not
+verify the transferred MicroLens files or CUDA behavior. Pure-ID HSTU and learned ID embeddings have since been implemented and verified
+with synthetic tasks and the separate official ML-1M experiment. MicroLens HSTU
+training/evaluation is implemented but awaits server verification. No title
+embedding table or content fusion has been implemented.
+
+## Locally verified data findings (2026-10-16)
+
+- 50,000 users, 19,220 mapped items, and 359,708 interactions.
+- Full sequence length: mean 7.19416, median 6, P99 24, maximum 218.
+- 18,490 items occur in training histories; 6,970 of them occur 1-5 times.
+- 730 mapped items never occur in any training history. Their targets account
+  for 844 validation examples and 2,226 test examples (4.452% of test users).
+  These are target-example counts, not distinct-item counts or verified new
+  publication events.
+- All 19,220 mapped items have one nonblank title row; semantic quality has
+  not been assessed. Raw titles and item IDs are not pretrained embeddings.
+- No validation/test target repeats within its own visible evaluation history
+  in this dataset snapshot.
+
+These findings favor diagnosing sparse feedback and short-history behavior
+before pursuing long-sequence acceleration. They do not prove text will help.
+The auditable definitions and reproduction command are in
+`docs/data-audit-2026-10-16.md`.
 
 ## Stage gates
 
 After preprocessing is verified, proceed in this order unless the user explicitly changes priorities:
 
-### Stage 2: SASRec baseline
+### Stage 2: shared evaluation and simple baselines
 
-- Build the PyTorch dataset, padding/masking, and next-item targets from the saved data contract.
-- Establish a simple, reproducible SASRec baseline before adding architectural complexity.
-- Record configuration, seed, evaluation protocol, and results.
+- Pass the eight existing Dataset tests on the server and verify processed-data checksums.
+- Implement full-catalog Recall/NDCG@10/20 with explicit padding exclusion,
+  visible-history filtering, deterministic ties, and candidate eligibility.
+- Fit Popularity and ItemCF using training histories only. Report evaluation
+  targets with zero training-history occurrences instead of silently removing them.
+- Keep per-user leave-one-out as the established benchmark. Global-time replay
+  is a separate, versioned protocol requiring timestamp and item-availability checks.
 
-### Stage 3: HSTU comparison
+### Stage 3: pure-ID HSTU baseline
 
-- Add HSTU only when the SASRec pipeline and evaluation are trusted.
-- Keep data splits and metrics identical so the comparison is meaningful.
+- Pin the upstream revision, dependencies, configuration, and reference results.
+- Verify a small official public-data recipe before interpreting MicroLens results;
+  establish tolerances and document adaptations instead of expecting identical metrics.
+- Validate causal/padding behavior, finite gradients, small-sample fitting,
+  checkpoint restoration, and server training before adding features.
+- Reuse the existing item mapping and sample contract. Add aligned timestamps
+  only when enabling temporal bias, without changing held-out targets.
+- Keep architecture comparisons separate from fused-kernel and serving benchmarks.
 
-### Stage 4: multimodal recommendation
+### Stage 4: evidence-driven improvement
 
-- Introduce title, cover, frame, audio, or pretrained content features selectively.
-- Start with the cheapest useful modality and show an ablation against the interaction-only baseline before downloading or processing large media archives.
-- Prevent content-feature preprocessing from changing the established temporal split.
+- Diagnose metrics by user history length and target-item training frequency,
+  including the zero-occurrence group. Select settings on validation data only.
+- A proposed inexpensive neural control is masked history mean pooling with
+  the same item embeddings, scoring head, objective, and tuning budget. This
+  tests whether short histories benefit from the more complex encoder.
+- If diagnostics motivate text, first compare ID-only, content initialization,
+  and simple fusion; consider frequency-dependent fusion only after that.
+- Any text fusion must define both history-input and candidate-output
+  representations. Freeze the text encoder first and cache aligned features.
+- Do not assume more epochs create independent interaction evidence, that
+  sequentially adjacent items share a topic, or that semantic similarity equals preference.
+- Introduce larger media assets or additional datasets only for a concrete
+  hypothesis that the current data cannot test.
 
-### Stage 5: agentic ranking
+### Stage 5: reproducible delivery and measured serving
 
-- Give every agent component a defined input, output, and reason to exist.
-- Compare it against simpler retrieval/ranking or deterministic reranking baselines.
-- Do not call a plain chain of prompts an improvement without measurable evidence.
+- Start with exact candidate scoring at the current catalog size; add ANN only
+  with a measured latency/recall tradeoff against exact retrieval.
+- Record warmup, batch size, concurrency, device, precision, and candidate count
+  when reporting serving latency or throughput.
+- Provide model/data/config identifiers and deterministic fallback behavior.
+- Describe offline metrics honestly. The available interaction table does not
+  establish exposure negatives, online CTR/watch-time lift, or production deployment.
+- Keep hypothetical future resume copy separate from actual implementation status.
 
 ## Engineering rules
 
@@ -169,3 +251,37 @@ After preprocessing is verified, proceed in this order unless the user explicitl
 - Explain recommendation-specific concepts when they first matter, especially chronology, masking, padding, negative sampling, leakage, and offline metrics.
 - Avoid overwhelming the user with future stages while a foundational stage is incomplete.
 - When offering code, make it runnable in this repository and state the exact command to verify it.
+
+## Current implementation and verification status (2026-10-21)
+
+This section supersedes older pending-stage descriptions in historical notes.
+Server results below are based on outputs returned by the project owner; raw
+server run artifacts have not been independently inspected from this Mac.
+
+- Stage 2 is server verified: 18 Dataset/baseline tests passed, and full
+  validation/test Popularity and ItemCF evaluations completed. Validation ItemCF
+  Recall/NDCG@10 = 0.04804/0.024495; test = 0.03534/0.017473.
+- The pinned official HSTU revision is
+  `10c4950343b98bacec9ffd5b8cd879f811fe2326`. Twelve dense block output/gradient
+  comparison cases passed on the server. Synthetic fitting reduced loss by
+  99.3%, and checkpoint output/RNG/next-step continuation passed.
+- Official ML-1M training completed 101 epochs, batch 128. All six final metric
+  differences from the pinned reference are below 0.00374, within the declared
+  0.02 absolute engineering band. This does not establish statistical equivalence
+  or MicroLens quality. See README and `docs/learning-10-official-ml1m-training.md`.
+- MicroLens HSTU integration is now implemented in `src/run_hstu_microlens.py`
+  and `src/microlens_training.py`, with separate debug, server smoke, and full
+  configurations. It reuses the existing Dataset, position-only IDHSTU and shared
+  full-catalog ranking rules. The initial loss is full-catalog cross entropy,
+  excluding padding; it is an adaptation, not the official sampled-softmax recipe.
+- Sixteen tiny baseline/configuration tests and syntax checks passed locally. Neural CPU tests,
+  checkpoint continuation and real-data smoke training await server verification.
+  No MicroLens HSTU score or performance improvement is claimed.
+
+Next action: on the server, run the focused tests and the three-epoch MicroLens
+smoke configuration in `docs/learning-11-microlens-hstu.md`. Inspect actual device,
+probe loss, gradients, checkpoint recovery, metrics, and peak allocated/reserved
+memory. Do not automatically start the full 30-epoch draft configuration or test
+selection. Training selects only by validation; test requires an explicit frozen
+checkpoint evaluation. Code/data/runtime identities must match for epoch-boundary
+continuation. Keep the original `last.pt` and sibling `best.pt` together.
