@@ -1,7 +1,7 @@
 # 19：先把标题变成可复核的冻结特征
 
 日期：2026-10-22。**特征准备链路已实现，本地 11 个轻量测试和完整标题对齐
-审计通过；服务器 14 个聚焦测试已通过，依赖安装、预检、标题哈希、服务器对齐审计和 64 条标题 CUDA 编码已通过；全量缓存待验证。
+审计通过；服务器 14 个聚焦测试已通过，依赖安装、预检、标题哈希、服务器对齐审计和 64 条标题 CUDA 编码和全量缓存 build 均已通过；正式缓存读取核对待返回。
 目前没有标题融合训练或推荐效果结论。**
 
 ## 本轮目的和验收
@@ -229,3 +229,41 @@ python scripts/prepare_title_features.py build
 
 全量缓存通过后，先核对缓存加载及正式产物身份，再进入标题初始化/简单融合的
 HSTU 对照实现。未完成此步前，不声称标题已接入推荐模型或已有推荐增益。
+
+
+## 2026-10-23 全目录缓存 build PASS
+
+用户返回 `Encoded titles 19220/19220` 和 `Title features build: PASS`。
+产物报告为 `runs/title-features-minilm/20261023T013804609858Z/results.json`，
+对应缓存文件为同目录 `features.npy`。按构建入口的完整检查，产物应为
+`[19221,384]` FP32，零 padding 行、有限单位向量和保存恢复均通过，
+输入/模型快照/源码哈希未变。没有重新训练推荐模型。
+
+下一步用下游将调用的正式 `load_cache` 读取该产物；它重新核对当前原始标题、
+处理后数据、配置、模型修订和 NPY 文件身份，拒绝 smoke 或被改动的缓存。
+同时读取实际截断数量和资源字段，无需重复编码或重新安装。
+
+```bash
+python - <<'PYCACHE'
+import json
+from pathlib import Path
+from title_features.cache import load_cache
+from title_features.data import input_hashes
+
+p = Path("runs/title-features-minilm/20261023T013804609858Z")
+r = json.loads((p / "results.json").read_text())
+x, r = load_cache(p, input_hashes(Path.cwd(), r["config"]))
+summary = {"shape": list(x.shape), "dtype": str(x.dtype),
+           "read_only": not x.flags.writeable,
+           "features_sha256": r["features_sha256"], "checks": r["checks"],
+           "encoder": r["encoder"], "elapsed_seconds": r["elapsed_seconds"],
+           "memory_bytes": r.get("memory_bytes"), "gpu": r["runtime"].get("gpu")}
+print(json.dumps(summary, indent=2))
+print("Full title cache load: PASS")
+PYCACHE
+```
+
+请返回这段小检查的输出，它不运行文本模型，只读现有文件。截断条数、耗时、
+显存与缓存哈希尚未展示，记录中不填推测值。随后开始下游标题初始化/简单融合，
+共享现有 HSTU 目标和评估规则，明确 384→64 适配及历史/候选表示。
+本次 build 成功不是标题推荐效果已经验证，也不能将本次缓存直接称为 MiniOneRec SID。

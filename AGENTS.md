@@ -523,9 +523,15 @@ consistency, finite unit rows, zero padding, exact saved output, and unchanged
 inputs/source/snapshot. Full smoke report fields (time/memory/hashes) were not
 shown, so do not invent their values.
 
-Next action: full feature `build` with the existing batch 32 recipe and pinned
-snapshot; expect 19220 encoded titles and [19221,384] FP32 (28.16 MiB) output.
-No reinstall, upload, unit-test or smoke repetition is needed. Obtain final build
-status/path, verify its full cache identity/loading, then implement downstream
-initialization/simple fusion. No HSTU content fusion or recommendation gain has
+The user subsequently returned full build PASS with all 19220 titles encoded,
+at `runs/title-features-minilm/20261023T013804609858Z/results.json`.
+The same directory contains features.npy; full shape [19221,384], FP32, zero
+padding/finite/unit-row and exact saved-output checks are enforced by the build.
+Actual full report truncation count, file hash, runtime and memory were not shown.
+
+Next action: load this exact full cache with `title_features.cache.load_cache`
+and current `input_hashes`, and print the compact summary in teaching note 19.
+This verifies the consumer path and captures artifact identity before downstream
+initialization/fusion implementation. No re-encoding, reinstall, unit-test or
+smoke repetition is needed. No HSTU content fusion or recommendation gain has
 been implemented or verified yet. Keep MiniOneRec deferred as agreed.

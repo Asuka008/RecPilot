@@ -32,7 +32,7 @@ passed, and the first full-data training and test evaluations returned PASS.
 | Official MovieLens-1M recipe | Batch 32/128 smoke checks and batch 128, 101-epoch training completed on the server |
 | MicroLens HSTU baseline | Training and frozen test evaluation passed; test Recall@10=0.04882, NDCG@10=0.024729; validation-selected checkpoint from the first 30-epoch candidate |
 | Prefix-mean neural control | Implemented with matched settings, shared scoring/objective and isolated source identity; 5 config tests passed locally; server smoke and full 30-epoch training PASS; best validation NDCG@10 about 0.029651; Mean beats raw HSTU on lower-frequency validation groups; paired identity audit and frozen test PASS (NDCG@10=0.017816); all 18 focused server tests confirmed OK by the user |
-| Frozen title features | Alignment audit and 11 lightweight tests passed locally; pinned MiniLM cache pipeline implemented; 14 server tests, setup/preflight/audit and 64-title CUDA smoke PASS; full cache and fusion pending |
+| Frozen title features | Alignment audit and 11 lightweight tests passed locally; pinned MiniLM cache pipeline implemented; 14 server tests, setup/preflight/audit and 64-title CUDA smoke and full cache build PASS; consumer load verification and fusion pending |
 | Recommendation service | Planned; no measured results yet |
 
 The portable implementation is in [src/models/hstu.py](src/models/hstu.py) and
@@ -422,6 +422,7 @@ implemented yet, and no gain is assumed.
 Server title setup subsequently completed on 2026-10-23: dependencies installed,
 raw CSV checksum and alignment matched, and preflight/audit/64-title CUDA smoke
 all returned PASS on A100 MIG. The verified torch/numpy versions were preserved.
-Next run `python scripts/prepare_title_features.py build` for all 19,220 titles;
-no reinstall or smoke repetition is needed. Full feature caching and downstream
-HSTU fusion remain unverified. See note 19 for exact run paths and checks.
+The full 19,220-title cache subsequently returned build PASS at
+`runs/title-features-minilm/20261023T013804609858Z/results.json`. Next verify its
+consumer load and read truncation/resource metadata using note 19. No re-encoding
+or setup repetition is needed. Downstream HSTU fusion remains unimplemented.
