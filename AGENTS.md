@@ -483,3 +483,25 @@ budget. Any later comparison must preserve the same data/evaluation contract and
 separate semantic features, SID construction, SFT and optional RL effects.
 The immediate gate remains the 14 title tests and server preflight; no new
 server output has been supplied since the feature-preparation implementation.
+
+
+## Title preflight server update (2026-10-23)
+
+The user returned all 14 title tests OK in 0.360 seconds and preflight NEEDS_SETUP
+at `runs/title-features-minilm/20261023T011421721161Z/results.json`.
+Python 3.11.16, pip 26.2.1, Conda 26.9.2, NumPy 1.26.4, torch 2.10.0+cu128,
+CUDA runtime 12.8 and A100-SXM4-80GB MIG 2g.20gb (20937965568 bytes) were
+reported; driver 570.211.01. Full-GPU memory query lacked permission, but torch
+allocation properties were available. pip check passed, nvcc/sbatch absent.
+All three processed files exist; raw title CSV is missing. The four HF packages
+are absent. Do not ask for the same environment inspection again.
+
+Requirements now pin transformers 4.57.1, huggingface-hub 0.36.0,
+tokenizers 0.22.1 and safetensors 0.6.2, compatible with the declared dependency
+ranges. Install using title-features-constraints.txt to preserve verified torch
+2.10.0+cu128 and NumPy 1.26.4, without torch extras or blanket upgrades. Actual
+installation/import compatibility is still pending server execution. Transfer
+the existing 2.3 MB raw title CSV separately (Jupyter upload is suitable), verify
+its previously recorded SHA256, then preflight -> audit -> 64-item smoke. Review
+smoke output before full build. The 14 tests need not be repeated merely to
+resubmit their output. Detailed commands are in teaching note 19.

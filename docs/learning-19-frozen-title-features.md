@@ -1,7 +1,7 @@
 # 19：先把标题变成可复核的冻结特征
 
 日期：2026-10-22。**特征准备链路已实现，本地 11 个轻量测试和完整标题对齐
-审计通过；3 个 PyTorch 池化测试、服务器依赖检查、真实编码和全量缓存待验证。
+审计通过；服务器 14 个聚焦测试已通过，依赖预检已返回 NEEDS_SETUP；真实编码和全量缓存待验证。
 目前没有标题融合训练或推荐效果结论。**
 
 ## 本轮目的和验收
@@ -102,10 +102,11 @@ Conda, PyTorch, CUDA runtime, package-manager, and job-scheduler details.”
 
 ## 检查后可执行的完整入口
 
-依赖声明在 `environments/title-features-requirements.txt`，只有固定 Transformers，
+依赖声明在 `environments/title-features-requirements.txt`，服务器预检后已固定四个文本包，
 不含 torch extra、不要求更换现有 PyTorch；实际安装方案以返回的 preflight 为准。
 版本依赖依据是 [Transformers 4.57.1 官方 setup](https://github.com/huggingface/transformers/blob/v4.57.1/setup.py)。
 该文件不是完整环境锁，编码报告会保存实际包版本，服务器验证后再冻结最终环境快照。
+另用 `title-features-constraints.txt` 保持已验证的 torch/numpy 版本。
 
 文件与依赖齐全后按顺序执行；每一步 PASS 才进入下一步：
 
@@ -127,4 +128,66 @@ python scripts/prepare_title_features.py build
 
 优先级确认：用户在讨论 MiniOneRec 后明确选择先继续本笔记的标题特征流程。
 MiniOneRec 留待主线标题实验和实测服务形成结果后再评估，不改变当前验收门槛。
-当前仍等待 14 个服务器测试和 preflight 输出；不在未知环境状态下直接安装依赖。
+服务器已返回 14 个测试 OK 和 preflight；当前栈与缺失项见下，可按核对后的约束安装。
+
+
+## 2026-10-23 服务器预检与安装步骤
+
+用户返回 14 个测试全部 OK，耗时 0.360 秒。预检报告：
+`runs/title-features-minilm/20261023T011421721161Z/results.json`，状态 NEEDS_SETUP。
+
+- Python 3.11.16，pip 26.2.1，Conda 26.9.2；pip check 无冲突。
+- PyTorch 2.10.0+cu128，NumPy 1.26.4，CUDA runtime 12.8，可用 CUDA。
+- 实际分配 A100-SXM4-80GB MIG 2g.20gb，20937965568 bytes；驱动 570.211.01。
+- nvidia-smi 的整卡显存查询受限，分配内存以 PyTorch 设备属性为准。
+- nvcc 和 sbatch 不存在；当前冻结推理流程不需要编译 CUDA 扩展或调度脚本。
+- Transformers/tokenizers/huggingface-hub/safetensors 未安装；三个处理后文件齐全，标题 CSV 缺失。
+
+已核对的文本包候选为 Transformers 4.57.1、huggingface-hub 0.36.0、
+[tokenizers 0.22.1](https://pypi.org/project/tokenizers/0.22.1/)、
+[safetensors 0.6.2](https://pypi.org/project/safetensors/0.6.2/)。
+[Transformers 的官方依赖声明](https://github.com/huggingface/transformers/blob/v4.57.1/setup.py)
+允许 hub >=0.34,<1.0，tokenizers >=0.22,<=0.23 和 safetensors >=0.4.3；
+[Hub 0.36.0](https://pypi.org/project/huggingface-hub/0.36.0/) 为固定的兼容候选。
+实际跨包导入、模型下载与运行仍需服务器验证，不能将版本区间匹配当作已执行通过。
+
+先在服务器运行（安装无需重跑原来的 14 个已通过测试）：
+
+```bash
+cd "$HOME/AgenticRec"
+git pull --ff-only
+conda activate "$HOME/conda-envs/agenticrec-hstu-reference"
+mkdir -p data/raw
+python -m pip install -r environments/title-features-requirements.txt -c environments/title-features-constraints.txt
+python -m pip check
+```
+
+通过 JupyterLab 文件浏览器将 Mac 的原始 `data/raw/MicroLens-50k_titles.csv`
+上传至服务器 `~/AgenticRec/data/raw/`。文件约 2.3 MB，不加入 Git，不用 git pull 传输。
+服务器此前缺失该文件，上传的是已有原始数据，不是生成或改写标题。
+
+上传后验证完整字节哈希：
+
+```bash
+python - <<'PYTITLE'
+import hashlib
+from pathlib import Path
+p = Path("data/raw/MicroLens-50k_titles.csv")
+actual = hashlib.sha256(p.read_bytes()).hexdigest()
+assert actual == "244aad5380cbbe0fb43458cfcda5ebe820f534384602f80a64dbbcd07dd30e49", actual
+print("Title CSV checksum: PASS")
+PYTITLE
+```
+
+再执行；每个动作 PASS 后进入下一步：
+
+```bash
+python scripts/prepare_title_features.py preflight
+python scripts/prepare_title_features.py audit
+python scripts/prepare_title_features.py smoke
+```
+
+预期依次为 preflight/audit/smoke PASS。smoke 首次下载固定模型快照，然后生成
+64 个物品的 `[65,384]` 特征；0 行是 padding。请返回这次 smoke 的输出及结果路径，
+再核对数值、缓存恢复和资源后全量编码。若安装、导入或网络步骤失败，返回错误，
+保留当前报告诊断，不通过换版本或换 PyTorch 绕过失败。

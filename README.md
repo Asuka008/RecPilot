@@ -32,7 +32,7 @@ passed, and the first full-data training and test evaluations returned PASS.
 | Official MovieLens-1M recipe | Batch 32/128 smoke checks and batch 128, 101-epoch training completed on the server |
 | MicroLens HSTU baseline | Training and frozen test evaluation passed; test Recall@10=0.04882, NDCG@10=0.024729; validation-selected checkpoint from the first 30-epoch candidate |
 | Prefix-mean neural control | Implemented with matched settings, shared scoring/objective and isolated source identity; 5 config tests passed locally; server smoke and full 30-epoch training PASS; best validation NDCG@10 about 0.029651; Mean beats raw HSTU on lower-frequency validation groups; paired identity audit and frozen test PASS (NDCG@10=0.017816); all 18 focused server tests confirmed OK by the user |
-| Frozen title features | Alignment audit and 11 lightweight tests passed locally; pinned MiniLM cache pipeline implemented; server preflight/inference pending; no fusion results |
+| Frozen title features | Alignment audit and 11 lightweight tests passed locally; pinned MiniLM cache pipeline implemented; 14 server tests OK; preflight found missing text dependencies and title CSV; actual encoding/fusion pending |
 | Recommendation service | Planned; no measured results yet |
 
 The portable implementation is in [src/models/hstu.py](src/models/hstu.py) and
@@ -417,3 +417,11 @@ or title transfer. It does not download the encoder. See
 [title feature note 19](docs/learning-19-frozen-title-features.md) for the pinned
 model, cache contract and later audit/smoke/build commands. No title fusion is
 implemented yet, and no gain is assumed.
+
+
+Server title preflight returned NEEDS_SETUP on 2026-10-23; all 14 title tests
+passed. The verified torch/numpy stack can be preserved with
+`environments/title-features-constraints.txt` while installing the pinned text
+requirements. Transfer the missing title CSV separately and follow note 19's
+checksum, repeated preflight, audit and 64-item smoke commands. Actual encoding
+has not run yet.
