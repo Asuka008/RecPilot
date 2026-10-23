@@ -563,3 +563,24 @@ review results before the two full 30-epoch candidates. No recommendation gain
 or GPU behavior has yet been verified for content HSTU. Formal selection remains
 validation-only, and MiniOneRec stays deferred. Exact commands and limitations
 are in docs/learning-20-title-hstu-controls.md.
+
+
+## Content HSTU server tests and both smokes PASS (2026-10-23)
+
+The user confirmed all 17 focused content tests passed. Title initialization
+smoke returned PASS twice at runs/title-init-smoke-server/20261023T022111405200Z
+and 20261023T022133518327Z, with matching printed metrics: losses
+9.650886/7.882080/6.883350, probes 8.118129/6.831610/6.121463, validation NDCG@10
+0.010190/0.007294/0.007940. Fixed fusion smoke returned PASS at
+runs/title-fusion-smoke-server/20261023T022236721652Z, losses
+9.891118/8.195031/7.155380, probes 8.621272/7.183420/6.410565, validation NDCG@10
+0.001962/0.004034/0.006858. Both parameter counts match reference at 1273406.
+No full resource reports were supplied for these runs.
+
+This supersedes the pending test/smoke gate above. Next run title-init-train-server
+and title-fusion-train-server sequentially, 30 epochs each from scratch, with
+unchanged configurations. No cache rebuild, repeated tests/smokes or new setup
+is needed. Review best-epoch overall/frequency/history validation metrics and
+resources against raw ID HSTU before deciding the frozen test recipe. Do not use
+smoke scores or already observed test results to tune new configurations.
+Full-data title experiments and recommendation gains remain unverified.

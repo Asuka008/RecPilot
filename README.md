@@ -412,8 +412,11 @@ lookup, training budget and raw scoring protocol. A frozen training-item PCA
 maps 384 to 64 dimensions without adding trainable parameters. Historical model
 sources and configurations are unchanged. Recommendation gains are unverified.
 
-Nine lightweight checks and syntax checks passed locally; eight new PyTorch
-model/runner tests and both CUDA smoke runs await server execution. Run the 17
-focused tests and two three-epoch smokes in
-[teaching note 20](docs/learning-20-title-hstu-controls.md) before full training.
-Do not repeat the earlier feature pipeline. MiniOneRec remains deferred.
+Nine lightweight checks and syntax checks passed locally. The user subsequently
+confirmed all 17 focused server tests OK and both three-epoch CUDA smokes PASS,
+with 1,273,406 trainable parameters each. Next run the two full 30-epoch recipes
+sequentially, then compare their best validation metrics and frequency slices
+against raw ID HSTU. Exact commands and smoke evidence are in
+[teaching note 20](docs/learning-20-title-hstu-controls.md). No feature preparation,
+unit-test or smoke repetition is required. Full training and recommendation gains
+remain unverified; MiniOneRec stays deferred.

@@ -2,7 +2,8 @@
 
 本阶段要回答：标题中已有的内容关系，能否改善纯 ID HSTU 的稀疏反馈表现？
 已有验证发现是 HSTU 总体更强，但低频目标落后于 Mean/ItemCF。它支持做标题
-对照，不证明缺少标题就是根因。实现完成，服务器模型测试和短训练待验证。
+对照，不证明缺少标题就是根因。实现完成，用户已确认 17 个服务器测试全部通过，两个 CUDA 短训练均 PASS。
+下一步为各自从头进行全量 30 轮训练，只用验证集选择与比较。
 
 ## 已有产物无需重跑
 
@@ -80,11 +81,12 @@ PCA 是最佳语义压缩方法。PCA 最大化标题特征方差，不直接优
 checkpoint 包括模型/优化器/RNG state_dict 和冻结语义表；模型恢复后检查隐藏输出
 和候选分数精确相等，完成后验证固定表、输入与源文件未改变。
 
-## 现在在服务器执行
+## 已完成的服务器验证（保留复现命令）
 
 使用已验证的 `agenticrec-hstu-reference` 环境，不重新安装依赖。Mac 已通过
 9 个纯 Python/小型 NumPy 测试及语法检查；下面共 17 个测试，新增 8 个依赖
-PyTorch 的模型/训练检查尚待服务器验证。测试使用很小的合成数据与 CPU。
+PyTorch 的模型/训练检查也已由用户确认全部通过。测试使用很小的合成数据与 CPU。
+下列测试及 smoke 命令无需为本次推进再次执行。
 
 ```bash
 cd "$HOME/AgenticRec"
@@ -104,14 +106,43 @@ python -m content_hstu.run train --config configs/title-fusion-smoke-server.json
 每个实验应显示参数数目 `1273406`，完成后 `Title HSTU train: PASS`。
 PASS 要求有限梯度、物品/HSTU 参数更新、固定训练 probe loss 下降、恢复输出和
 分数一致、冻结表和输入不变。NDCG 数值不预设，也不要求 smoke 超过基线。
-把测试结尾、两个训练末尾和各自 `Saved:` 路径返回即可。
+服务器回传记录（2026-10-23）：
+
+| 模式 | epoch 1→3 loss | epoch 1→3 probe | 三轮 val NDCG@10 | 状态 |
+|---|---|---|---|---|
+| title-init | 9.650886→6.883350 | 8.118129→6.121463 | 0.010190 / 0.007294 / 0.007940 | PASS |
+| title-fusion | 9.891118→7.155380 | 8.621272→6.410565 | 0.001962 / 0.004034 / 0.006858 | PASS |
+
+两个模式均报告 1,273,406 个参数，与 HSTU reference 相同。初始化短训练运行了
+两次，显示的逐轮数值一致；仅凭这些打印精度不能声称全部产物逐位一致。
+报告路径：
+
+- `runs/title-init-smoke-server/20261023T022111405200Z/results.json`
+- `runs/title-init-smoke-server/20261023T022133518327Z/results.json`
+- `runs/title-fusion-smoke-server/20261023T022236721652Z/results.json`
+
+短训练验证了流程可运行，不用它决定正式实验胜者。当前尚未收到这两个模式的
+完整资源字段或正式训练结果，不推断速度、显存或推荐收益。
 
 ## 短训练通过后的正式实验
 
-完整配置已经提供，等短训练通过再运行。每个模式各 30 轮、相同 seed/数据/
-预算，通过验证集比较既有纯 ID、标题初始化、固定融合，查看总体和频次分组。
-正式命令是把上述配置换成 `title-init-train-server.json` 和
-`title-fusion-train-server.json`；不要把 smoke checkpoint 用于正式训练。
+短训练关卡现已通过。每个模式各 30 轮、相同 seed/数据/预算，均从头训练，
+不传 smoke checkpoint。依次执行，一个结束后再启动另一个：
+
+```bash
+cd "$HOME/AgenticRec"
+git pull --ff-only
+conda activate "$HOME/conda-envs/agenticrec-hstu-reference"
+python -m content_hstu.run train --config configs/title-init-train-server.json
+python -m content_hstu.run train --config configs/title-fusion-train-server.json
+```
+
+预期各显示 30 轮日志并以 `Title HSTU train: PASS` 结束。返回两段训练日志和
+`Saved:` 路径；下一步读取各自 best epoch 的完整验证分组和资源报告。
+主比较是未经频次修正的纯 ID HSTU（val NDCG@10=0.0377242280），同时检查
+频次 0、1–5、6–20、21+ 的 Recall/NDCG 以及用户历史长度分组。
+若总体下降但低频提升，记录权衡，不凭一个分组宣称总体更优。
+此前 alpha=0.5 的分数修正结果单列，不将标题效应和分数修正效应混合。
 
 续跑用原配置加 `--resume <原运行目录>/last.pt`，保留同目录 best.pt，要求相同
 Git/runtime/content 身份。可用 `--stop-after-epoch 1` 测试 epoch 边界暂停，配置
