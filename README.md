@@ -412,11 +412,13 @@ lookup, training budget and raw scoring protocol. A frozen training-item PCA
 maps 384 to 64 dimensions without adding trainable parameters. Historical model
 sources and configurations are unchanged. Recommendation gains are unverified.
 
-Nine lightweight checks and syntax checks passed locally. The user subsequently
-confirmed all 17 focused server tests OK and both three-epoch CUDA smokes PASS,
-with 1,273,406 trainable parameters each. Next run the two full 30-epoch recipes
-sequentially, then compare their best validation metrics and frequency slices
-against raw ID HSTU. Exact commands and smoke evidence are in
-[teaching note 20](docs/learning-20-title-hstu-controls.md). No feature preparation,
-unit-test or smoke repetition is required. Full training and recommendation gains
-remain unverified; MiniOneRec stays deferred.
+Nine lightweight checks passed locally; all 17 focused server tests and both
+CUDA smokes subsequently passed. Both full 30-epoch title runs also returned PASS.
+Their printed best validation NDCG@10 is 0.037931 (initialization) and 0.037252
+(fusion), both at epoch 30, versus raw ID HSTU 0.0377242280. These small one-seed
+differences do not establish a reliable content gain. Next read the saved
+best-epoch slices and resources using `scripts/compare_title_validation.py`;
+exact paths/commands and limitations are in
+[teaching note 20](docs/learning-20-title-hstu-controls.md). No training, cache or
+test repetition is needed. Full report pairing and low-frequency effects remain
+awaiting server output; MiniOneRec stays deferred.

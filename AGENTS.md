@@ -584,3 +584,25 @@ is needed. Review best-epoch overall/frequency/history validation metrics and
 resources against raw ID HSTU before deciding the frozen test recipe. Do not use
 smoke scores or already observed test results to tune new configurations.
 Full-data title experiments and recommendation gains remain unverified.
+
+
+## Both full title HSTU training runs PASS (2026-10-23)
+
+The user returned all 30 epochs and PASS for title-init at
+`runs/title-init-train-server/20261023T162529774092Z/results.json` and title-fusion
+at `runs/title-fusion-train-server/20261023T165455784364Z/results.json`.
+Both report 1273406 parameters. Printed best validation NDCG@10 occurs at epoch
+30 for both: init 0.037931, fusion 0.037252, approximately +0.55%/-1.25% versus
+raw ID HSTU 0.03772422803068947. Init first/final losses 8.897017/8.105081;
+fusion 9.014198/8.115843. Treat these as rounded single-seed observations, not
+significance or established title gains. Full precision, group metrics, actual
+runtime/device and memory for these runs are not yet supplied.
+
+Next action is read-only report comparison via scripts/compare_title_validation.py
+with the three exact report paths in note 20. It validates report-level pairing
+and earliest validation selection and prints slices/resources. Five synthetic
+standard-library tests and CLI check passed locally; real report pairing awaits
+server output. It does not load checkpoints, verify current files or authorize
+test evaluation. Do not repeat finished training/tests or expand epochs/weights
+before reviewing validation slices. Keep historical checkpoint-bound sources
+unchanged and MiniOneRec deferred.
