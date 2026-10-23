@@ -430,7 +430,12 @@ solution is not established. Do not repeat training/test or tune from these test
 results. Test resource fields and multi-seed robustness remain unreported.
 
 See [note 20](docs/learning-20-title-hstu-controls.md) for full evidence and
-reproduction commands. A possible next experiment is validation-only HSTU/ItemCF
-complementarity and simple fusion, motivated by earlier validation slices; this
-is planned, not implemented, and does not solve zero-interaction cold start.
-MiniOneRec stays deferred.
+reproduction commands. Following the user's research-first request, automatic
+progression to HSTU/ItemCF fusion is paused. The
+[industrial cold-start review](docs/learning-21-industrial-cold-start-and-tail-review.md)
+compares primary sources with the actual implementation: fixed additive titles
+do not provide a learned shared content mapper or missing-ID training, and all
+catalog items already receive scores. The next planned artifact is a validation-only
+audit of title signal, target ranks and collaborative-hit complementarity, before
+choosing another training change. This audit is not implemented or server verified.
+Historical checkpoints and completed test recipes remain frozen; MiniOneRec stays deferred.

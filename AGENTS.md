@@ -665,3 +665,35 @@ validation evidence, not the new test slices. This fusion is not implemented or
 verified yet; it targets sparse observed items and cannot solve zero-interaction
 cold start on its own. Keep content generalization, statistical robustness,
 serving measurements and MiniOneRec separate from completed evidence.
+
+## Research-first correction after title controls (2026-10-23)
+
+The user requested an industrial-practice review before more experiments,
+expressing concern about blind iteration. This supersedes automatic progression
+to HSTU/ItemCF fusion. Primary-source research and implementation review are
+documented in docs/learning-21-industrial-cold-start-and-tail-review.md.
+Public methods distinguish content-to-preference mapping, training with missing
+preference inputs, feature-use/ranking diagnostics, and online exploration.
+Do not infer industry adoption rates or transferable lift from these examples.
+
+Code inspection establishes that fixed V=E+0.5*S with unrestricted per-item E
+does not expand the fixed-catalog lookup function class. It changes initialization,
+optimization and regularization; it does not prove learned cancellation of S.
+There is no learned shared content projection or item-ID dropout in the current
+title controls. Full-catalog cross entropy includes zero-positive items as
+non-target classes; they are not untouched embeddings. These facts identify
+mechanisms to examine, not an established causal explanation of all tail failures.
+All catalog items are scored, so upstream retrieval omission is not the current
+failure. Do not conflate sampled-negative log-Q correction with our full-softmax
+objective or post-hoc popularity correction.
+
+Next planned artifact: a validation-only diagnostic using existing frozen
+artifacts, comparing raw384/PCA64 title-mean scoring with one preregistered
+within-frequency item/title permutation, target-rank distributions for existing
+models, and same-K HSTU/ItemCF exclusive hits. Preserve filtering and identity
+checks; reproduce raw baseline validation metrics. No diagnostic implementation
+or new server verification exists yet. Do not start another 30-epoch run before
+reviewing this evidence. Weak zero-shot content results do not rule out learned
+content usefulness. Future shared mapping/ID-dropout or fusion changes are
+conditional hypotheses, not guaranteed fixes. Keep all reported test recipes
+frozen and disclose reuse of this benchmark; do not call it an untouched test.
