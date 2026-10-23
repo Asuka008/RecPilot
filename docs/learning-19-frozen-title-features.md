@@ -1,7 +1,7 @@
 # 19：先把标题变成可复核的冻结特征
 
 日期：2026-10-22。**特征准备链路已实现，本地 11 个轻量测试和完整标题对齐
-审计通过；服务器 14 个聚焦测试已通过，依赖预检已返回 NEEDS_SETUP；真实编码和全量缓存待验证。
+审计通过；服务器 14 个聚焦测试已通过，依赖安装、预检、标题哈希、服务器对齐审计和 64 条标题 CUDA 编码已通过；全量缓存待验证。
 目前没有标题融合训练或推荐效果结论。**
 
 ## 本轮目的和验收
@@ -191,3 +191,41 @@ python scripts/prepare_title_features.py smoke
 64 个物品的 `[65,384]` 特征；0 行是 padding。请返回这次 smoke 的输出及结果路径，
 再核对数值、缓存恢复和资源后全量编码。若安装、导入或网络步骤失败，返回错误，
 保留当前报告诊断，不通过换版本或换 PyTorch 绕过失败。
+
+
+## 2026-10-23 安装与 64 条标题编码通过
+
+用户返回安装成功，四个文本包与固定版本一致；pip check 无冲突，BertModel
+导入成功。PyTorch 2.10.0+cu128、NumPy 1.26.4、CUDA runtime 12.8 保持原值，
+实际设备仍为 A100 MIG 2g.20gb。标题原始字节哈希验证 PASS。
+
+- preflight PASS：`runs/title-features-minilm/20261023T013402313329Z/results.json`。
+- audit PASS：`runs/title-features-minilm/20261023T013439647115Z/results.json`。
+- smoke PASS：`runs/title-features-minilm/20261023T013447156086Z/results.json`。
+
+服务器审计的 19,220 物品、零缺失/空标题、87 条重复文本额外行以及对齐摘要
+均与 Mac 一致。六个固定版本的模型/分词器文件成功下载，权重文件约 90.9 MB。
+两个 batch 共编码 64 条标题。按入口约定，PASS 已执行冻结参数检查、同批重复
+推理精确一致、单条/批量 padding 一致性、有限单位向量、零 padding 行、
+NPY 保存恢复精确一致及输入/模型快照/源码未变检查。
+日志未展示实际 smoke 耗时、峰值显存和文件哈希字段，不填写推测数值。
+
+本次新增包日志记录为：certifi 2026.10.19、charset_normalizer 3.5.2、
+hf-xet 1.7.0、idna 3.20、pyyaml 6.0.3、regex 2026.9.29、requests 2.34.2、
+tqdm 4.70.1、urllib3 2.8.0，以及四个已固定的文本包。完整环境仍以运行报告
+中的 packages 为准；这些观测不是另一次安装要求。
+
+现在不重复安装、上传、单元测试或 smoke。下一步直接生成完整缓存：
+
+```bash
+python scripts/prepare_title_features.py build
+```
+
+模型将复用已下载的固定快照，仍按 batch 32 推理，输出 CPU 数组从 65 行扩大为
+19,221 行（约 28.16 MiB），不是加大 GPU batch 或训练模型。预期最后进度为
+`Encoded titles 19220/19220`，最后状态 `Title features build: PASS`。
+请返回最后几行和新报告路径。保存的完整文件须为 `[19221,384]` FP32，且通过
+完整数组的零 padding、单位范数、有限性和恢复检查；smoke 文件仍不能用于训练。
+
+全量缓存通过后，先核对缓存加载及正式产物身份，再进入标题初始化/简单融合的
+HSTU 对照实现。未完成此步前，不声称标题已接入推荐模型或已有推荐增益。

@@ -505,3 +505,27 @@ the existing 2.3 MB raw title CSV separately (Jupyter upload is suitable), verif
 its previously recorded SHA256, then preflight -> audit -> 64-item smoke. Review
 smoke output before full build. The 14 tests need not be repeated merely to
 resubmit their output. Detailed commands are in teaching note 19.
+
+
+## Title setup and smoke server PASS (2026-10-23)
+
+The user supplied installation success, pip check clean, raw title SHA256 PASS,
+preflight PASS at `runs/title-features-minilm/20261023T013402313329Z/results.json`,
+audit PASS at `runs/title-features-minilm/20261023T013439647115Z/results.json`,
+and 64-title smoke PASS at
+`runs/title-features-minilm/20261023T013447156086Z/results.json`.
+All four pinned HF versions match, BertModel imports successfully, and torch
+2.10.0+cu128/numpy 1.26.4/CUDA runtime 12.8 remain unchanged on A100 MIG 2g.20gb.
+The six pinned snapshot files including a 90.9 MB weight file downloaded, and
+both 32-item batches completed. Server title audit and aligned digest match Mac.
+Smoke PASS enforces frozen parameters, exact repeated inference, batch-padding
+consistency, finite unit rows, zero padding, exact saved output, and unchanged
+inputs/source/snapshot. Full smoke report fields (time/memory/hashes) were not
+shown, so do not invent their values.
+
+Next action: full feature `build` with the existing batch 32 recipe and pinned
+snapshot; expect 19220 encoded titles and [19221,384] FP32 (28.16 MiB) output.
+No reinstall, upload, unit-test or smoke repetition is needed. Obtain final build
+status/path, verify its full cache identity/loading, then implement downstream
+initialization/simple fusion. No HSTU content fusion or recommendation gain has
+been implemented or verified yet. Keep MiniOneRec deferred as agreed.
