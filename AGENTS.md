@@ -470,3 +470,16 @@ or guess missing packages. Transfer titles separately if absent (Git ignores CSV
 After environment/files are verified, audit then 64-item smoke, review it, then
 full cache build; only then implement downstream initialization/fusion with
 explicit history and candidate representations and validation-only selection.
+
+
+## MiniOneRec prioritization (user confirmation, 2026-10-22)
+
+The user explicitly chose to continue the current title-feature/HSTU work and
+asked that MiniOneRec be considered later when appropriate. Treat it as an
+optional subsequent comparison, not an authorization to start a second training
+pipeline now. Reassess after the title experiment and a measured HSTU serving
+path have concrete results, considering actual GPU allocation and implementation
+budget. Any later comparison must preserve the same data/evaluation contract and
+separate semantic features, SID construction, SFT and optional RL effects.
+The immediate gate remains the 14 title tests and server preflight; no new
+server output has been supplied since the feature-preparation implementation.
