@@ -639,3 +639,29 @@ identity and actual runtime. Twelve local standard-library checks and CLI/syntax
 checks passed. Actual frozen admission and title-init test are pending server
 execution. Do not repeat previous training/encoding/model tests. MiniOneRec stays
 deferred. Current exact command is in note 20.
+
+
+## Frozen title-init test PASS and experiment closure (2026-10-23)
+
+The user returned Frozen title report/checkpoint preflight PASS (title-init,
+epoch30 best.pt) and Title HSTU evaluate PASS. Test report:
+`runs/title-init-train-server/20261023T184815307170Z/results.json`.
+All 50000 users: NDCG@10=.025048004444575108, NDCG@20=.03109323246867899,
+Recall@10=.04878, Recall@20=.0728. Versus raw ID, NDCG@10 is +1.29045%,
+NDCG@20 +1.32683%, R10 -0.08193%, R20 +0.58027%. Top-20 hits increase
+3619->3640, with frequency6-20 153->163 and21+ 3466->3477. Frequency0 (2226)
+and1-5 (11557) remain zero. Top-10 hits decrease2441->2439. No significance,
+all-metric improvement, or cold-start/long-tail solution is established.
+History-length N10 is higher in every group, but R20 falls slightly in11-20;
+longest group has only686 users. Full figures are recorded in teaching note20.
+Actual test time/memory/runtime fields have not been supplied.
+
+The one-seed title comparison is complete. Do not repeat encoding, tests,
+training or test evaluation without a concrete failure. Do not tune title
+weights, epochs or score correction from these test results. Preserve the
+existing frozen baselines and title results. Possible next work is validation
+candidate-hit complementarity and simple HSTU/ItemCF fusion, motivated by earlier
+validation evidence, not the new test slices. This fusion is not implemented or
+verified yet; it targets sparse observed items and cannot solve zero-interaction
+cold start on its own. Keep content generalization, statistical robustness,
+serving measurements and MiniOneRec separate from completed evidence.

@@ -410,7 +410,7 @@ Two complete isolated controls now use that cache: title initialization and
 fixed additive ID/title fusion. Both share the original HSTU backbone, input/output
 lookup, training budget and raw scoring protocol. A frozen training-item PCA
 maps 384 to 64 dimensions without adding trainable parameters. Historical model
-sources and configurations are unchanged. Recommendation gains are unverified.
+sources and configurations are unchanged. Stable gains remain unverified.
 
 Nine lightweight checks passed locally; all 17 focused server tests and both
 CUDA smokes subsequently passed. Both full 30-epoch title runs also returned PASS.
@@ -421,11 +421,16 @@ remain zero for all three models. A stable content gain or tail solution is not
 established. Recorded run times are 1196.93/1688.93/1253.46 seconds for ID/init/
 fusion on A100 MIG; these are not isolated model or serving benchmarks.
 
-Following the predeclared validation metric, freeze initialization epoch 30 for
-one test evaluation. `python scripts/evaluate_selected_title.py` verifies the
-report winner, current config/source/data and exact best checkpoint, then runs
-the existing evaluator. The cache/projection identity is checked by that evaluator.
-Twelve local report/admission/config tests passed; actual frozen test remains
-pending. See [note 20](docs/learning-20-title-hstu-controls.md) for evidence,
-commands and limits. Do not retrain, tune from test results or expand fusion;
+The validation-selected initialization epoch30 subsequently passed frozen
+checkpoint admission and test evaluation. Test NDCG@10=0.025048004444575108
+(+1.29% vs raw ID), Recall@20=.0728 (+21 hits), while Recall@10=.04878 is slightly
+lower. Frequency 0 and 1–5 still have no hits (13,783 test targets combined).
+The title comparison is complete for this seed; a stable gain or sparse-item
+solution is not established. Do not repeat training/test or tune from these test
+results. Test resource fields and multi-seed robustness remain unreported.
+
+See [note 20](docs/learning-20-title-hstu-controls.md) for full evidence and
+reproduction commands. A possible next experiment is validation-only HSTU/ItemCF
+complementarity and simple fusion, motivated by earlier validation slices; this
+is planned, not implemented, and does not solve zero-interaction cold start.
 MiniOneRec stays deferred.
