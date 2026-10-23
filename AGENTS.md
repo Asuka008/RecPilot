@@ -535,3 +535,31 @@ This verifies the consumer path and captures artifact identity before downstream
 initialization/fusion implementation. No re-encoding, reinstall, unit-test or
 smoke repetition is needed. No HSTU content fusion or recommendation gain has
 been implemented or verified yet. Keep MiniOneRec deferred as agreed.
+
+
+## Full title consumer PASS and downstream implementation (2026-10-23)
+
+The user returned `Full title cache load: PASS` for the exact full build above:
+shape (19221,384), float32, features SHA256
+`af5c0482e9b37294e1e4817810d5e2b0b407c22759207078fd402f7ea0525b25`.
+All frozen/repeat/batch-padding/padding-zero/unit-row/saved-output checks passed;
+10 titles truncated, elapsed 37.32873547798954 seconds, peak allocated/reserved
+515812864/828375040 bytes. This supersedes the pending consumer gate above.
+Do not repeat installation, title encoding or the already passed feature tests.
+
+New isolated `content_hstu/` implements complete title-init and title-fusion
+train/evaluate/epoch-resume paths, paired configs and teaching note 20. Fixed PCA
+uses distinct items in selected training histories only; all catalog titles are
+transformed by that basis and scaled to 0.02*sqrt(D). Init replaces initial ID
+weights; fusion preserves random ID initialization and adds 0.5 times a frozen
+title table. Both histories and candidate scores use this representation, with
+unchanged trainable parameter budget and raw scoring. Original src/controls,
+title_features and existing configs remain unchanged to preserve old identities.
+
+Nine local pure-Python/tiny-NumPy tests and syntax checks passed. Eight new
+PyTorch model/runner tests are prepared but NOT run locally. Next action: run
+all 17 focused content tests on server CPU, then both three-epoch CUDA smokes;
+review results before the two full 30-epoch candidates. No recommendation gain
+or GPU behavior has yet been verified for content HSTU. Formal selection remains
+validation-only, and MiniOneRec stays deferred. Exact commands and limitations
+are in docs/learning-20-title-hstu-controls.md.

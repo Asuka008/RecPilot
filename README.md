@@ -399,30 +399,21 @@ measurements remain future work; offline ranking results do not establish online
 CTR, watch-time lift, or production deployment.
 
 
-### Next experiment: frozen title features
+### Current experiment: title-aware HSTU controls
 
-The complete preparation pipeline is implemented, with no changes to historical
-model sources or configurations. The local audit aligned all 19,220 titles and
-11 lightweight checks passed. Actual encoder inference and recommendation gain
-remain unverified. Start on the server with:
+Title preparation and full consumer loading are server verified: 19,220 items,
+FP32 `[19221,384]` cache, 10 truncated titles, 37.33 seconds for full encoding.
+The frozen cache is `runs/title-features-minilm/20261023T013804609858Z`; no setup
+or encoding repetition is needed. See [note 19](docs/learning-19-frozen-title-features.md).
 
-```bash
-python -m unittest tests.test_title_data tests.test_title_cache tests.test_title_preflight tests.test_title_encoder -v
-python scripts/prepare_title_features.py preflight
-```
+Two complete isolated controls now use that cache: title initialization and
+fixed additive ID/title fusion. Both share the original HSTU backbone, input/output
+lookup, training budget and raw scoring protocol. A frozen training-item PCA
+maps 384 to 64 dimensions without adding trainable parameters. Historical model
+sources and configurations are unchanged. Recommendation gains are unverified.
 
-Expect 14 tests OK. The read-only preflight reports installed dependencies, current
-GPU and missing inputs; NEEDS_SETUP means review its report before installation
-or title transfer. It does not download the encoder. See
-[title feature note 19](docs/learning-19-frozen-title-features.md) for the pinned
-model, cache contract and later audit/smoke/build commands. No title fusion is
-implemented yet, and no gain is assumed.
-
-
-Server title setup subsequently completed on 2026-10-23: dependencies installed,
-raw CSV checksum and alignment matched, and preflight/audit/64-title CUDA smoke
-all returned PASS on A100 MIG. The verified torch/numpy versions were preserved.
-The full 19,220-title cache subsequently returned build PASS at
-`runs/title-features-minilm/20261023T013804609858Z/results.json`. Next verify its
-consumer load and read truncation/resource metadata using note 19. No re-encoding
-or setup repetition is needed. Downstream HSTU fusion remains unimplemented.
+Nine lightweight checks and syntax checks passed locally; eight new PyTorch
+model/runner tests and both CUDA smoke runs await server execution. Run the 17
+focused tests and two three-epoch smokes in
+[teaching note 20](docs/learning-20-title-hstu-controls.md) before full training.
+Do not repeat the earlier feature pipeline. MiniOneRec remains deferred.

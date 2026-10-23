@@ -66,3 +66,14 @@ version, 384-dimensional FP32 output, token truncation, batch size and device.
 Use `python scripts/prepare_title_features.py preflight` before environment
 changes. Then audit/smoke/build produce independent reports under runs/; the
 64-item smoke artifact is not a valid full cache. See teaching note 19.
+
+
+Title HSTU configs (`title-init-{debug,smoke-server,train-server}.json` and
+`title-fusion-{debug,smoke-server,train-server}.json`) pin the verified full
+feature cache and its SHA256. All original experiment fields except output_dir
+must match their named HSTU reference. `train-item-pca-v1` is fitted on distinct
+items in selected training histories; initialization uses fusion_weight=0 and
+fixed fusion uses 0.5. Both use the same representation for history and candidates.
+Run `python -m content_hstu.run train --config CONFIG`. Start with the 17 tests
+and both server smokes in note 20; full-data configs are provided for after that
+gate. No extra dependencies, title re-encoding or test-based tuning is required.
