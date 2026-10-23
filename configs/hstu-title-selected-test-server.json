@@ -1,0 +1,10 @@
+{
+  "reports": {
+    "id": "runs/hstu-microlens/20261022T023420952080Z/results.json",
+    "title-init": "runs/title-init-train-server/20261023T162529774092Z/results.json",
+    "title-fusion": "runs/title-fusion-train-server/20261023T165455784364Z/results.json"
+  },
+  "selected_model": "title-init",
+  "selected_epoch": 30,
+  "training_config": "configs/title-init-train-server.json"
+}

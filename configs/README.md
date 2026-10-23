@@ -77,3 +77,10 @@ fixed fusion uses 0.5. Both use the same representation for history and candidat
 Run `python -m content_hstu.run train --config CONFIG`. Start with the 17 tests
 and both server smokes in note 20; full-data configs are provided for after that
 gate. No extra dependencies, title re-encoding or test-based tuning is required.
+
+
+`hstu-title-selected-test-server.json` freezes the three completed validation
+report paths and the selected title-init epoch30 candidate. It is an evaluation
+admission recipe, not a training config. Run
+`python scripts/evaluate_selected_title.py` (or `--check-only` for report/file
+checks without model execution). No scoring/epoch override is exposed; see note20.

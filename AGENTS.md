@@ -606,3 +606,36 @@ server output. It does not load checkpoints, verify current files or authorize
 test evaluation. Do not repeat finished training/tests or expand epochs/weights
 before reviewing validation slices. Keep historical checkpoint-bound sources
 unchanged and MiniOneRec deferred.
+
+
+## Full title validation comparison and frozen candidate (2026-10-23)
+
+The user returned report pairing PASS and exact best validation slices/resources.
+Init NDCG@10=0.03793132350166986 (+0.54897%), R20=.1024; fusion
+NDCG@10=.03725230719301553 (-1.25098%), R20=.10182. ID/init/fusion Top-20
+hits are 5088/5120/5091 overall, 191/221/206 for frequency 6-20 and
+4897/4899/4885 for 21+. Frequency 0 (844) and 1-5 (7264) stay at zero.
+Init adds only 32 hits and does not solve sparse-item failure; do not claim
+statistical significance or that all text methods fail. History-length results
+are mixed. Full evidence is recorded in teaching note 20.
+
+Reported runtimes: ID 1196.9340426961426s, init 1688.9285601947922s,
+fusion 1253.4578634558711s. Peak allocated bytes 171903488/181745152/181745664;
+reserved 243269632/251658240/251658240. All report A100 MIG 2g.20gb,
+torch2.10+cu128, CUDA12.8, NumPy1.26.4, FP32/TF32off. These are whole-run
+measurements, not isolated overhead or serving benchmarks. Both title runs use
+clean commit 921b276f7b502e9f942de2f5c18614da99a1987c and identical PCA identity:
+18490 fit items, 384->64, explained variance .5789973137664619. Variance is not
+semantic-information retention. The user supplied actual array hashes in output.
+
+Freeze title-init epoch30 best.pt under the predeclared validation NDCG@10 rule,
+seed42 and unchanged raw-score configuration, for one test evaluation to close
+this comparison. No claim of promotion to the main model or stable gain is made.
+Do not test fusion or retune epochs/weights/alpha from test feedback. New isolated
+scripts/evaluate_selected_title.py and configs/hstu-title-selected-test-server.json
+verify report selection, current config/source/data and recorded best.pt hash
+before invoking the existing evaluator, which checks cache/projection/checkpoint
+identity and actual runtime. Twelve local standard-library checks and CLI/syntax
+checks passed. Actual frozen admission and title-init test are pending server
+execution. Do not repeat previous training/encoding/model tests. MiniOneRec stays
+deferred. Current exact command is in note 20.

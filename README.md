@@ -414,11 +414,18 @@ sources and configurations are unchanged. Recommendation gains are unverified.
 
 Nine lightweight checks passed locally; all 17 focused server tests and both
 CUDA smokes subsequently passed. Both full 30-epoch title runs also returned PASS.
-Their printed best validation NDCG@10 is 0.037931 (initialization) and 0.037252
-(fusion), both at epoch 30, versus raw ID HSTU 0.0377242280. These small one-seed
-differences do not establish a reliable content gain. Next read the saved
-best-epoch slices and resources using `scripts/compare_title_validation.py`;
-exact paths/commands and limitations are in
-[teaching note 20](docs/learning-20-title-hstu-controls.md). No training, cache or
-test repetition is needed. Full report pairing and low-frequency effects remain
-awaiting server output; MiniOneRec stays deferred.
+Full report pairing subsequently passed. Initialization validation NDCG@10 is
+0.0379313235 (+0.549% vs raw ID); fusion is 0.0372523072 (-1.251%). Initialization
+adds 32 Top-20 hits, 30 in frequency 6–20 and two in 21+; frequency 0 and 1–5
+remain zero for all three models. A stable content gain or tail solution is not
+established. Recorded run times are 1196.93/1688.93/1253.46 seconds for ID/init/
+fusion on A100 MIG; these are not isolated model or serving benchmarks.
+
+Following the predeclared validation metric, freeze initialization epoch 30 for
+one test evaluation. `python scripts/evaluate_selected_title.py` verifies the
+report winner, current config/source/data and exact best checkpoint, then runs
+the existing evaluator. The cache/projection identity is checked by that evaluator.
+Twelve local report/admission/config tests passed; actual frozen test remains
+pending. See [note 20](docs/learning-20-title-hstu-controls.md) for evidence,
+commands and limits. Do not retrain, tune from test results or expand fusion;
+MiniOneRec stays deferred.
