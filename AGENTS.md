@@ -793,3 +793,22 @@ fields were not supplied. Both smoke gates passed; next execute the predeclared
 paired30-epoch full-data validation-only recipes without changing hyperparameters.
 Do not repeat smoke, cache preparation or old test evaluations. Compare each
 model's earliest validation-selected best epoch, not simply its last epoch.
+
+
+## Full paired mapping training PASS (2026-10-24)
+
+User returned both30-epoch full-data training runs PASS on A100 MIG2g.20gb,
+Python3.11.16/torch2.10.0+cu128. Frozen43262 parameters: best printed validation
+NDCG@10=.012059 at epoch28; final loss9.286922. Report:
+runs/map-frozen-train-server/20261024T165826137072Z/results.json.
+Learned67838 parameters: best printed validation NDCG@10=.014608 at epoch28;
+final loss8.956967. Report:
+runs/map-learned-train-server/20261024T171919631080Z/results.json.
+From rounded logs learned is about21.14% higher than frozen, but about61.28%
+lower than raw ID (.0377242280). It is only about3.92% above direct384 title
+mean (.0140572575), and that comparison changes encoder/dimension/training.
+No robust architecture or end-to-end improvement is established. Exact best
+selection, frequency/history slices, paired identities and resource fields have
+not yet been returned. Next read these saved reports only; do not add epochs,
+change tuning, or evaluate test. Tail and zero-frequency improvement is unknown
+until selected validation slices are inspected. Retain ID HSTU as main model.
