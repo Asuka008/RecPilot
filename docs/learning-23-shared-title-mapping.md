@@ -140,3 +140,39 @@ selection, frequency/history slices, paired identities and resource fields have
 not yet been returned. Next read these saved reports only; do not add epochs,
 change tuning, or evaluate test. Tail and zero-frequency improvement is unknown
 until selected validation slices are inspected. Retain ID HSTU as main model.
+
+
+## 2026-10-24 最佳轮分组核对与阶段结论
+
+用户运行只读脚本，data_id/source_id/content_id/train_users_sha256/
+eval_users_sha256 成对一致，完整报告选轮检查通过。两组均选择验证第 28 轮：
+frozen NDCG@10=0.012059027869283721，learned=0.01460829926623397。
+恢复输出和分数检查均为 true，probe 下降；restored_epoch=30 指末轮恢复，
+不是用于比较的最佳轮。
+
+| 验证目标频次 | 固定映射 Top-20 命中 | 学习映射 Top-20 命中 | 差值 |
+|---|---:|---:|---:|
+| 0 | 16 | 9 | -7 |
+| 1–5 | 106 | 97 | -9 |
+| 6–20 | 459 | 485 | +26 |
+| 21+ | 1411 | 2043 | +632 |
+| 全部 | 1992 | 2634 | +642 |
+
+总体 Recall@20=.03984/.05268。学习映射的总体提升主要来自高频组，最稀疏
+两组反而下降；低频 NDCG@10 从 .0031741147 降到 .0026053143，零频从
+.0069984909 降到 .0022918683。各历史长度组提升不能代替目标频次组结论。
+直接384维标题均值此前低频/零频命中225/26，64维为202/23，均高于这两个
+训练配方。它们不是同一架构，但作为实际低成本参照，不支持继续扩大当前配方。
+
+固定组耗时1252.159228s，峰值 allocated/reserved=205578240/283115520 bytes；
+学习组1315.897099s，248129024/316669952 bytes。整轮训练时间不是服务延迟。
+
+决定：本轮共享线性内容映射对照结束，未实现目标长尾改进，不评估测试集，
+不追加轮数、不自动添加门控或 ID dropout。保留 ID HSTU 主模型，保留标题
+均值的低成本内容信号。这个负结果限于当前线性映射、损失和预算，不能证明所有
+监督内容学习无效，也不能因频次分布而断言特定损失项是已确认根因。
+
+后续候选优先转向已有评分器的有限验证集组合：HSTU 与 ItemCF 已有实际独有
+命中证据。先固定组合规则、范围和总体/低频判定标准，不把命中并集当收益，
+不按未知的真实目标频次选择模型，不同时增加新神经训练。该组合尚未实现或
+验证；内容评分通道的额外贡献应另做消融，不能预设三路组合必然有效。

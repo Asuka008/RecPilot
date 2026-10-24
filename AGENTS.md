@@ -812,3 +812,17 @@ selection, frequency/history slices, paired identities and resource fields have
 not yet been returned. Next read these saved reports only; do not add epochs,
 change tuning, or evaluate test. Tail and zero-frequency improvement is unknown
 until selected validation slices are inspected. Retain ID HSTU as main model.
+
+
+## Shared-map mechanism experiment closed (2026-10-24)
+
+Exact paired identities and validation selections returned by user. Both epoch28:
+frozen N10=.012059027869283721, learned=.01460829926623397. Top20 counts by
+frequency0/1-5/6-20/21+/all: frozen16/106/459/1411/1992; learned9/97/485/2043/2634.
+Of642 net extra hits,632 are in21+, while zero/tail decline7/9. No target tail
+improvement; stop this recipe, no extra epochs or test evaluation. Raw384 title
+mean225tail/26zero and PCA64 mean202/23 beat both on sparse targets. Keep ID HSTU
+main model. Potential next work is bounded validation-only HSTU/ItemCF score
+combination justified by measured exclusive hits, with content channel separate.
+Do not promise union-oracle gains, route using true target frequency, or add more
+neural mechanisms automatically. Full exact metrics/resources are in note23.
