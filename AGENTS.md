@@ -884,3 +884,19 @@ Benchmark first compares original offline batches with request-at-a-time scores
 concurrency1, warmup20,100requests, FP32 synchronized core latency excluding HTTP.
 No repeated test-quality evaluation or new tuning. Server correctness and measured
 latency remain unverified. See docs/learning-26-exact-serving.md for commands.
+
+## Serving parity and core latency server PASS (2026-10-24)
+
+User returned 7 tests OK (.175s), artifact admission PASS and benchmark PASS:
+runs/hybrid-serving/20261024T204850491181Z/results.json. A100 MIG2g.20gb,
+torch2.10.0+cu128/numpy1.26.4, Python3.11.16, FP32/TF32off,24CPUthreads,
+19220candidates,100CFneighbors,1111056edges. Startup11.377485s.
+100 training-history requests: max score error2.123415470123291e-7 (atol1e-6),
+exact Top20 parity. Raw mean/p50/p95/p99 ms=3.354121/3.348491/3.438029/3.546075;
+hybrid=3.704634/3.612403/3.932139/4.505386. Mean overhead .350514ms (+10.45%).
+Both peak allocated/reserved49789952/62914560bytes; shared loaded artifacts,
+not independent raw-only deployment memory. Batch1,concurrency1,warmup20 per mode,
+100measurements per mode; excludes HTTP/startup. Serial reciprocal rates298.14/269.93
+are not concurrent throughput. Full report not locally inspected; RSS not returned.
+Do not repeat training, quality tests or benchmark without a reason. Next verify
+the actual loopback HTTP endpoint using note26 commands; live HTTP remains pending.

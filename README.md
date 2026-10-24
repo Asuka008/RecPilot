@@ -465,10 +465,12 @@ Top-20 hits; zero-frequency targets still have none. This is one seed on a reuse
 offline benchmark, not statistical significance or online lift. No rerun is required.
 See [note 25](docs/learning-25-frozen-hybrid-test.md) for commands and limitations.
 
-### Exact recommendation service (awaiting server verification)
+### Exact recommendation service
 
 The frozen hybrid now has a loopback HTTP interface and a label-free parity/latency
 benchmark. Model and training-only ItemCF load once; exact ranking filters full
-visible history. Six lightweight local tests passed. Neural parity and real-device
-latency await the server; no production throughput claim is made.
+visible history. Seven server tests and the 100-request benchmark passed on A100
+MIG 2g.20gb: exact Top-20 parity, maximum score error 2.12e-7; hybrid mean/p95
+3.705/3.932 ms versus raw HSTU 3.354/3.438 ms. These are batch-one, serial,
+in-process timings excluding HTTP and startup; HTTP live checks remain pending.
 See [note 26](docs/learning-26-exact-serving.md) for the server checks and API example.
