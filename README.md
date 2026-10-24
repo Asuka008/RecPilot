@@ -437,5 +437,5 @@ compares primary sources with the actual implementation: fixed additive titles
 do not provide a learned shared content mapper or missing-ID training, and all
 catalog items already receive scores. The next planned artifact is a validation-only
 audit of title signal, target ranks and collaborative-hit complementarity, before
-choosing another training change. This audit is not implemented or server verified.
+choosing another training change. This audit is now implemented; 12 lightweight local checks passed. Two server CPU checks and real-data inference await server verification. See [note 22](docs/learning-22-validation-mechanism-audit.md) for the exact command.
 Historical checkpoints and completed test recipes remain frozen; MiniOneRec stays deferred.

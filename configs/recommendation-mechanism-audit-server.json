@@ -1,0 +1,20 @@
+{
+  "reports": {
+    "id": "runs/hstu-microlens/20261022T023420952080Z/results.json",
+    "title-init": "runs/title-init-train-server/20261023T162529774092Z/results.json",
+    "title-fusion": "runs/title-fusion-train-server/20261023T165455784364Z/results.json"
+  },
+  "training_configs": {
+    "id": "configs/hstu-microlens-train-server.json",
+    "title-init": "configs/title-init-train-server.json",
+    "title-fusion": "configs/title-fusion-train-server.json"
+  },
+  "baseline_report": "runs/baselines/20261018T201816099815Z/results.json",
+  "baseline_config": "configs/baselines-server.json",
+  "output_dir": "runs/recommendation-mechanism-audit",
+  "split": "val",
+  "permutation_seed": 20261023,
+  "rank_cutoffs": [20, 100, 500, 1000],
+  "margin_k": 20,
+  "anchor_atol": 1e-10
+}

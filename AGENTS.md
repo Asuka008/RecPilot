@@ -697,3 +697,18 @@ reviewing this evidence. Weak zero-shot content results do not rule out learned
 content usefulness. Future shared mapping/ID-dropout or fusion changes are
 conditional hypotheses, not guaranteed fixes. Keep all reported test recipes
 frozen and disclose reuse of this benchmark; do not call it an untouched test.
+
+
+## Mechanism audit implementation (2026-10-24)
+
+The research-first validation audit is now implemented in diagnostics/ and
+scripts/audit_recommendation_mechanisms.py, configured by
+configs/recommendation-mechanism-audit-server.json. It authenticates all three
+paired checkpoints and the historical ItemCF validation report, reproduces four
+validation anchors, and computes raw384/PCA64 title-mean controls with one fixed
+within-frequency permutation, exact target ranks/margins, and same-K exclusive
+hits. It does not train, select a new model, or evaluate test. Model sources and
+training configurations remain unchanged. Twelve tiny standard-library/NumPy
+tests passed locally; two synthetic server CPU checks and real-data inference
+remain pending. Exact commands and interpretation are in teaching note22.
+Do not repeat completed training or declare a tail improvement from implementation.
