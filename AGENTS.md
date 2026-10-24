@@ -849,5 +849,8 @@ Alpha.5 has272 tail hits but regresses overall N10=.0360072778, so do not choose
 Freeze full .25 recipe with raw HSTU, training-only100-neighbor CF, eligible-CF-max
 normalization and no-evidence fallback. No added correction/title branch. Next
 implement frozen admission and one test evaluation, not more validation search.
-Test entry point not yet implemented. Single-seed selected validation result,
+The frozen test entry point is now implemented in scripts/evaluate_selected_hybrid.py,
+with validation-selection/source/data/checkpoint admission and alpha=.25 locked.
+Seven lightweight local tests passed; server inference awaits verification.
+See docs/learning-25-frozen-hybrid-test.md. Single-seed selected validation result,
 not significance, cold-start solution or independent confirmation. See note24.

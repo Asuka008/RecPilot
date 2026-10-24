@@ -1,0 +1,5 @@
+{
+  "validation_report": "runs/hybrid-validation/20261024T203229829396Z/results.json",
+  "audit_config": "configs/recommendation-mechanism-audit-server.json",
+  "alpha": 0.25
+}

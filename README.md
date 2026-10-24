@@ -452,3 +452,11 @@ All seven focused server checks and both three-epoch smokes passed. The
 predeclared paired full-data validation experiments are next; no gain is established. See [note23](docs/learning-23-shared-title-mapping.md).
 Historical sources/checkpoints remain unchanged, and this runner permits no test
 evaluation. Do not start formal training before reviewing both smoke results.
+
+### Current next step: frozen hybrid test
+
+The subsequent HSTU + ItemCF validation selected alpha=0.25, with NDCG@10
+0.0443610116 and Recall@20 0.11482. A frozen test entry point now checks the
+validation selection and artifact identities before inference. Seven lightweight
+local checks passed; server test inference is pending. No retraining is required.
+See [note 25](docs/learning-25-frozen-hybrid-test.md) for commands and limitations.
