@@ -31,6 +31,10 @@ class MappedModelTest(unittest.TestCase):
         self.assertNotIn('item_embedding.weight', dict(learned.named_parameters()))
         self.assertFalse(frozen.item_embedding.projector.weight.requires_grad)
         self.assertTrue(learned.item_embedding.projector.weight.requires_grad)
+        self.assertNotIn('item_embedding.projector.weight', dict(frozen.named_parameters()))
+        self.assertIn('item_embedding.projector.weight', dict(frozen.named_buffers()))
+        self.assertIn('item_embedding.projector.weight', frozen.state_dict())
+        self.assertTrue(all(p.requires_grad for p in frozen.parameters()))
         self.assertEqual(sum(p.numel() for p in learned.parameters() if p.requires_grad) -
                          sum(p.numel() for p in frozen.parameters() if p.requires_grad), 12*8)
 

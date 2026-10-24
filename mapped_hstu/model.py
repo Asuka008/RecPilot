@@ -7,6 +7,22 @@ from torch.nn import functional as F
 from src.models.id_hstu import IDHSTU
 
 
+class SharedProjection(nn.Module):
+    """Register fixed weights as buffers and learned weights as parameters."""
+
+    def __init__(self, components, learned):
+        super().__init__()
+        weight = components.T.float().detach().clone()
+        if learned:
+            self.weight = nn.Parameter(weight)
+        else:
+            self.register_buffer('weight', weight)
+
+    def forward(self, values):
+        """Use the same linear operation for both experiment arms."""
+        return F.linear(values, self.weight)
+
+
 class SharedLookup(nn.Module):
     """Map frozen titles through a shared centered linear projection on both sides."""
 
@@ -19,10 +35,7 @@ class SharedLookup(nn.Module):
             raise ValueError('Invalid aligned features or projection')
         self.register_buffer('semantic', semantic.detach().clone())
         self.register_buffer('center', mean.float().detach().clone())
-        self.projector = nn.Linear(semantic.shape[1], components.shape[1], bias=False)
-        with torch.no_grad():
-            self.projector.weight.copy_(components.T)
-        self.projector.weight.requires_grad_(learned)
+        self.projector = SharedProjection(components, learned)
         self.scale = .02 * math.sqrt(components.shape[1])
 
     def forward(self, ids):

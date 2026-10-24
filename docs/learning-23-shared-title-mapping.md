@@ -86,3 +86,18 @@ python -m mapped_hstu.run train --config configs/map-learned-train-server.json
 
 需要中断续训时使用同环境/源码下的 `--resume <原运行目录>/last.pt`；保留同目录 best.pt。
 所有运行产物保持 Git 忽略。不重复之前完成的诊断、标题编码或测试评估。
+
+
+## Frozen projection registration fix (2026-10-24)
+
+The user returned six passing tests and one failing runner integration test.
+The fixed projection was a requires_grad=False Parameter, while the shared
+training routine deliberately requires a finite gradient for every named
+parameter. It is now a registered buffer; the learned projection remains a
+Parameter. Both use F.linear and save the same weight key in state_dict.
+The original training routine and gradient guard remain unchanged. Tests now
+explicitly check buffer/parameter registration and checkpoint inclusion.
+Three local configuration tests and syntax checks pass; corrected neural tests
+and real-data smokes await server verification. The shell && chain stopped at
+tests, so neither real-data smoke ran. Pull and repeat the seven focused tests
+followed by the two smoke commands above. No prior training rerun is required.

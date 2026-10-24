@@ -758,3 +758,18 @@ checks plus syntax/CLI pass; four server neural checks and paired 3-epoch smokes
 are pending. Exact commands and gates in note23. Review smoke before the two
 predeclared30-epoch validation-only runs; test evaluation is forbidden. Historical
 checkpoint-bound sources/configs remain unchanged. No gain established yet.
+
+
+## Frozen projection registration fix (2026-10-24)
+
+The user returned six passing tests and one failing runner integration test.
+The fixed projection was a requires_grad=False Parameter, while the shared
+training routine deliberately requires a finite gradient for every named
+parameter. It is now a registered buffer; the learned projection remains a
+Parameter. Both use F.linear and save the same weight key in state_dict.
+The original training routine and gradient guard remain unchanged. Tests now
+explicitly check buffer/parameter registration and checkpoint inclusion.
+Three local configuration tests and syntax checks pass; corrected neural tests
+and real-data smokes await server verification. The shell && chain stopped at
+tests, so neither real-data smoke ran. Pull and repeat the seven focused tests
+followed by the two smoke commands above. No prior training rerun is required.
