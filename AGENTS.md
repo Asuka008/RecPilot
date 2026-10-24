@@ -773,3 +773,23 @@ Three local configuration tests and syntax checks pass; corrected neural tests
 and real-data smokes await server verification. The shell && chain stopped at
 tests, so neither real-data smoke ran. Pull and repeat the seven focused tests
 followed by the two smoke commands above. No prior training rerun is required.
+
+
+## Paired mapping smoke server PASS (2026-10-24)
+
+The user returned all seven focused tests PASS (13.702s) and both three-epoch
+smokes PASS at commit53a191b. Runtime: Python3.11.16, torch2.10.0+cu128,
+CUDA12.8, A100-SXM4-80GB MIG2g.20gb,20937965568 visible bytes.
+Frozen:43262 trainable parameters; loss9.738615->9.434431,
+probe9.461222->9.072540, final validation NDCG@10=.010448.
+Report:runs/map-frozen-smoke-server/20261024T165622195010Z/results.json.
+Learned:67838 trainable parameters; loss9.679343->9.212684,
+probe9.271473->8.798348, final validation NDCG@10=.009406
+(best printed .009813 at epoch1).
+Report:runs/map-learned-smoke-server/20261024T165639012746Z/results.json.
+These are1024-user smokes, not evidence of a full-data improvement. Lower learned
+training loss does not establish better validation ranking. Actual final resource
+fields were not supplied. Both smoke gates passed; next execute the predeclared
+paired30-epoch full-data validation-only recipes without changing hyperparameters.
+Do not repeat smoke, cache preparation or old test evaluations. Compare each
+model's earliest validation-selected best epoch, not simply its last epoch.
