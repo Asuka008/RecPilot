@@ -453,10 +453,14 @@ predeclared paired full-data validation experiments are next; no gain is establi
 Historical sources/checkpoints remain unchanged, and this runner permits no test
 evaluation. Do not start formal training before reviewing both smoke results.
 
-### Current next step: frozen hybrid test
+### Frozen hybrid test result
 
 The subsequent HSTU + ItemCF validation selected alpha=0.25, with NDCG@10
 0.0443610116 and Recall@20 0.11482. A frozen test entry point now checks the
 validation selection and artifact identities before inference. Seven lightweight
-local checks passed; server test inference is pending. No retraining is required.
+local checks and seven server tests passed. Frozen test evaluation also passed:
+NDCG@10=0.0293590633, Recall@20=0.08346, respectively +8.31% and +10.22%
+relative to the fixed frequency-corrected HSTU. Frequency 1–5 targets have 86
+Top-20 hits; zero-frequency targets still have none. This is one seed on a reused
+offline benchmark, not statistical significance or online lift. No rerun is required.
 See [note 25](docs/learning-25-frozen-hybrid-test.md) for commands and limitations.

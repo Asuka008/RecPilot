@@ -851,6 +851,22 @@ normalization and no-evidence fallback. No added correction/title branch. Next
 implement frozen admission and one test evaluation, not more validation search.
 The frozen test entry point is now implemented in scripts/evaluate_selected_hybrid.py,
 with validation-selection/source/data/checkpoint admission and alpha=.25 locked.
-Seven lightweight local tests passed; server inference awaits verification.
+Seven lightweight local tests passed; server inference subsequently passed as below.
 See docs/learning-25-frozen-hybrid-test.md. Single-seed selected validation result,
 not significance, cold-start solution or independent confirmation. See note24.
+
+## Frozen hybrid test server PASS (2026-10-24)
+
+User returned seven tests OK (0.051s), admission PASS and test PASS at
+runs/hybrid-selected-test/20261024T204032578400Z/results.json on A100 MIG 2g.20gb,
+torch2.10.0+cu128/numpy1.26.4, FP32 with TF32 off. Alpha stays .25.
+Test R10/N10/R20/N20=.0561/.02935906328561316/.08346/.03626219147039771.
+Top20 hits total4173: zero0, frequency1-5=86,6-20=580,21+=3507.
+N10 +18.72% vs raw HSTU and +8.31% vs corrected HSTU; R20 +15.31%/+10.22%.
+Against corrected HSTU, tail/mid/head hit-count differences are +86/+330/-29.
+Tail R20 remains only .0074413775 and zero-frequency remains0/2226.
+Full server report not independently read locally; resources/history slices not shown.
+Do not rerun training/test or tune from this result. Single seed and reused benchmark;
+no significance, online-lift or solved-cold-start claims. Next proposed milestone is
+exact-catalog serving with measured latency/resource cost; not implemented yet.
+See note25 for full result and limitations.
