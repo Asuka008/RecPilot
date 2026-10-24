@@ -826,3 +826,14 @@ main model. Potential next work is bounded validation-only HSTU/ItemCF score
 combination justified by measured exclusive hits, with content channel separate.
 Do not promise union-oracle gains, route using true target frequency, or add more
 neural mechanisms automatically. Full exact metrics/resources are in note23.
+
+## Bounded hybrid validation implemented
+
+scripts/evaluate_hybrid_validation.py evaluates fixed alpha0/.1/.25/.5 using
+raw frozen HSTU cosine mapped to[0,1] and eligible ItemCF scores normalized by
+user maximum. Zero CF falls back to raw HSTU. Shared admission and strict ID/CF
+anchors apply; no neural training or test evaluation. Three tiny NumPy tests
+and syntax checks passed locally; real server verification pending. See note24.
+A candidate must not regress raw overall N10 and must have tail hits; selection
+is only for review, not significance or proof of improvement. Compare against
+stronger corrected HSTU too. Do not expand search automatically on failure.
