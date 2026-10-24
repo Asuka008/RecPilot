@@ -712,3 +712,16 @@ training configurations remain unchanged. Twelve tiny standard-library/NumPy
 tests passed locally; two synthetic server CPU checks and real-data inference
 remain pending. Exact commands and interpretation are in teaching note22.
 Do not repeat completed training or declare a tail improvement from implementation.
+
+
+## Legacy ItemCF report fix (2026-10-24)
+
+The user reported all original 14 tests and three HSTU validation anchors PASS
+on A100 MIG. The audit failed on a missing history-length axis in the historical
+ItemCF report, not an observed metric mismatch. Only legacy ItemCF may omit this
+axis: its frequency groups remain strictly checked, and newly computed history
+metrics are labeled computed_without_historical_anchor. Modern reports still
+check both axes. Fifteen lightweight local tests pass; the updated server checks
+and real audit remain pending (17 focused tests total). Repeat validation
+inference only; no retraining, title encoding or test evaluation is needed.
+The failed run did not save per-user ranks, so inference must restart.

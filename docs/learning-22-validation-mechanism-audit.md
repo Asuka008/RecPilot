@@ -60,7 +60,7 @@ python -m unittest tests.test_mechanism_admission tests.test_mechanism_statistic
 python scripts/audit_recommendation_mechanisms.py
 ```
 
-预期 `Ran 14 tests ... OK`。服务器专属检查包括标题均值手算，以及四用户八物品
+预期 `Ran 17 tests ... OK`。服务器专属检查包括标题均值手算，以及四用户八物品
 合成状态的完整推理和错误锚点拒绝；它们不训练真实模型，也不证明推荐效果。
 正式诊断先显示 `Frozen diagnostic file admission: PASS` 和实际设备，随后各变体
 打印进度，四个已有评分器分别打印 `frozen validation anchor PASS`。
@@ -75,3 +75,16 @@ python scripts/audit_recommendation_mechanisms.py --check-only
 返回末尾八个变体摘要、Same-K complementarity、保存路径及 PASS/FAIL。
 出现错误先返回报错，不修改既有模型或校验规则。根据报告选择一个有证据的改动；
 没有模型选择或自动调参步骤，也没有预设标题一定能解决长尾。
+
+
+## Legacy ItemCF report fix (2026-10-24)
+
+The user reported all original 14 tests and three HSTU validation anchors PASS
+on A100 MIG. The audit failed on a missing history-length axis in the historical
+ItemCF report, not an observed metric mismatch. Only legacy ItemCF may omit this
+axis: its frequency groups remain strictly checked, and newly computed history
+metrics are labeled computed_without_historical_anchor. Modern reports still
+check both axes. Fifteen lightweight local tests pass; the updated server checks
+and real audit remain pending (17 focused tests total). Repeat validation
+inference only; no retraining, title encoding or test evaluation is needed.
+The failed run did not save per-user ranks, so inference must restart.
