@@ -1,14 +1,44 @@
 """Tiny NumPy checks of diagnostic ranks, controls and same-user accounting."""
 
 import unittest
+import copy
 
 import numpy as np
 
 from diagnostics.tail_statistics import (bucket, complementarity, summarize_ranks,
-                                         target_position, title_permutation)
+                                         target_position, title_permutation, verify_diagnostic_anchor)
 
 
 class MechanismStatisticsTest(unittest.TestCase):
+    def test_legacy_itemcf_checks_frequency_and_labels_unanchored_history(self):
+        group = {"all": {"users": 4, "metrics": {"Recall@20": .5}}}
+        actual = {"split": "val", "groups_by_target_train_frequency": group,
+                  "groups_by_history_length": group}
+        legacy = {k: v for k, v in actual.items() if k != "groups_by_history_length"}
+        coverage = verify_diagnostic_anchor("itemcf", actual, legacy, 1e-10)
+        self.assertEqual(coverage["computed_without_historical_anchor"], ["groups_by_history_length"])
+        self.assertIn("groups_by_history_length", actual)
+        changed = copy.deepcopy(legacy)
+        changed["groups_by_target_train_frequency"]["all"]["metrics"]["Recall@20"] = .4
+        with self.assertRaises(AssertionError):
+            verify_diagnostic_anchor("itemcf", actual, changed, 1e-10)
+
+    def test_missing_neural_axis_and_missing_frequency_are_rejected(self):
+        report = {"split": "val", "groups_by_target_train_frequency": {"all": {}}}
+        with self.assertRaises(ValueError):
+            verify_diagnostic_anchor("id", report, report, 1e-10)
+        with self.assertRaises(ValueError):
+            verify_diagnostic_anchor("itemcf", report, {"split": "val"}, 1e-10)
+
+    def test_modern_itemcf_still_checks_history_metrics(self):
+        group = {"all": {"users": 4, "metrics": {"Recall@20": .5}}}
+        report = {"split": "val", "groups_by_target_train_frequency": group,
+                  "groups_by_history_length": copy.deepcopy(group)}
+        expected = copy.deepcopy(report)
+        expected["groups_by_history_length"]["all"]["metrics"]["Recall@20"] = .4
+        with self.assertRaises(AssertionError):
+            verify_diagnostic_anchor("itemcf", report, expected, 1e-10)
+
     def test_exact_ranks_match_full_sort_with_ties_and_complete_history_filter(self):
         rng = np.random.default_rng(8)
         for _ in range(12):

@@ -7,6 +7,29 @@ from src.evaluation import rank_candidates
 GROUPS = ("all", "0", "1-5", "6-20", "21+")
 
 
+def verify_diagnostic_anchor(name, actual, expected, atol):
+    """Admit only the known legacy ItemCF schema, with explicit check coverage."""
+    from scripts.diagnose_hstu_scores import verify_anchor
+
+    frequency = "groups_by_target_train_frequency"
+    history = "groups_by_history_length"
+    if frequency not in expected or not expected[frequency]:
+        raise ValueError("Frozen anchor requires target-frequency groups")
+    checked = [frequency, history]
+    unanchored = []
+    if history not in expected:
+        if name != "itemcf":
+            raise ValueError("Only legacy ItemCF may omit history-length groups")
+        # Empty both axes for the existing strict comparator, never synthesize
+        # an expected historical result from today's observations.
+        actual = {**actual, history: {}}
+        expected = {**expected, history: {}}
+        checked = [frequency]
+        unanchored = [history]
+    verify_anchor(actual, expected, atol)
+    return {"verified_axes": checked, "computed_without_historical_anchor": unanchored}
+
+
 def bucket(count):
     """Use training-history frequency, not held-out target counts."""
     return "0" if count == 0 else "1-5" if count <= 5 else "6-20" if count <= 20 else "21+"

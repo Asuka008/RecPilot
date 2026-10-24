@@ -86,8 +86,7 @@ def run(config_path, root=ROOT):
         from content_hstu.artifacts import prepare_content, verify_content
         from content_hstu.model import TitleHSTU
         from diagnostics.tail_statistics import (complementarity, summarize_ranks, target_position,
-                                                title_permutation)
-        from scripts.diagnose_hstu_scores import verify_anchor
+                                                title_permutation, verify_diagnostic_anchor)
         from src.baselines import ItemCF
         from src.data.dataset import SASRecEvalDataset
         from src.evaluation import RankingAccumulator
@@ -187,9 +186,10 @@ def run(config_path, root=ROOT):
                 raise ValueError("Diagnostic scorer omitted users")
             evaluation = accumulator.result("val")
             if expected is not None:
-                verify_anchor(evaluation, expected, recipe["anchor_atol"])
+                coverage = verify_diagnostic_anchor(name, evaluation, expected, recipe["anchor_atol"])
+                result.setdefault("anchor_coverage", {})[name] = coverage
                 result["checks"][name + "_validation_reproduced"] = True
-                print(f"{name}: frozen validation anchor PASS", flush=True)
+                print(f"{name}: frozen validation anchor PASS; coverage={json.dumps(coverage)}", flush=True)
             observations[name + "_rank"] = ranks
             observations[name + "_margin"] = margins
             observations[name + "_effective_k"] = effective

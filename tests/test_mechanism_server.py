@@ -107,6 +107,7 @@ class MechanismServerTest(unittest.TestCase):
         frequency = Counter(i for r in records for i in r["train"])
         baseline = {"config": bc, "split": "val", "data_sha256": checksums,
                     "models": {"itemcf": evaluate(model, records, "val", [10, 20], frequency)}}
+        del baseline["models"]["itemcf"]["groups_by_history_length"]
         for key, value in (("baseline_config", bc), ("baseline_report", baseline)):
             path = folder / f"{key}.json"
             path.write_text(json.dumps(value))
@@ -129,12 +130,14 @@ class MechanismServerTest(unittest.TestCase):
             self.assertEqual(len(report["variants"]), 8)
             self.assertEqual(report["data"]["validation_users"], 4)
             self.assertTrue(report["checks"]["title-fusion_validation_reproduced"])
+            self.assertEqual(report["anchor_coverage"]["itemcf"]["computed_without_historical_anchor"],
+                             ["groups_by_history_length"])
             with np.load(directory / "per_user_diagnostics.npz", allow_pickle=False) as arrays:
                 np.testing.assert_array_equal(arrays["user_id"], [101, 102, 103, 104])
                 self.assertFalse(any("test" in name for name in arrays.files))
             baseline_path = Path(recipe["baseline_report"])
             baseline = json.loads(baseline_path.read_text())
-            baseline["models"]["itemcf"]["groups_by_history_length"]["all"]["metrics"]["Recall@20"] = .123
+            baseline["models"]["itemcf"]["groups_by_target_train_frequency"]["all"]["metrics"]["Recall@20"] = .123
             baseline_path.write_text(json.dumps(baseline))
             with redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
                 run(path)
