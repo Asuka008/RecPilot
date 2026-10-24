@@ -439,3 +439,16 @@ catalog items already receive scores. The next planned artifact is a validation-
 audit of title signal, target ranks and collaborative-hit complementarity, before
 choosing another training change. This audit is now implemented; 12 lightweight local checks passed. Two server CPU checks and real-data inference await server verification. See [note 22](docs/learning-22-validation-mechanism-audit.md) for the exact command.
 Historical checkpoints and completed test recipes remain frozen; MiniOneRec stays deferred.
+
+
+### Shared title mapping mechanism experiment
+
+The completed mechanism audit found real title signal against a within-frequency
+permutation, while all three neural variants ranked sparse targets far below
+Top20. An isolated content-only HSTU control now compares a frozen versus learned
+shared 384-to-64 centered linear map, with identical PCA initialization and no
+independent ID table. This is a mechanism experiment, not a demonstrated gain.
+Three local configuration checks passed; four server neural checks and paired
+smokes await verification. See [note23](docs/learning-23-shared-title-mapping.md).
+Historical sources/checkpoints remain unchanged, and this runner permits no test
+evaluation. Do not start formal training before reviewing both smoke results.

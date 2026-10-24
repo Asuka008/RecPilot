@@ -742,3 +742,19 @@ explanation for neural zero tail hits. ItemCF adds1674 exclusive hits, including
 Prioritize a separately specified learned shared content mapping hypothesis;
 ID dropout is a separate ablation. No new mapper implemented or gain established.
 Do not rerun the completed audit. Detailed evidence is appended to note22.
+
+
+## Shared mapping implementation (2026-10-24)
+
+User authorized the most reasonable next experiment after audit evidence.
+Isolated mapped_hstu/ implements content-only HSTU with shared centered linear
+384-to-64 mapping, initialized from training-item PCA, normalized and used on
+both history and candidate sides. No independent trainable ID table survives.
+Compare map-frozen vs map-learned; do not mix ID dropout, gating, ItemCF or score
+correction. Fixed mapping trains the HSTU backbone; learned mapping also trains
+24576 shared weights. Trainable parameter counts expected43262/67838 vs original
+1273406, so no equal-parameter claim. Both start identically. Three local config
+checks plus syntax/CLI pass; four server neural checks and paired 3-epoch smokes
+are pending. Exact commands and gates in note23. Review smoke before the two
+predeclared30-epoch validation-only runs; test evaluation is forbidden. Historical
+checkpoint-bound sources/configs remain unchanged. No gain established yet.

@@ -1,0 +1,37 @@
+{
+  "mode": "full",
+  "data_dir": "data/processed",
+  "output_dir": "runs/map-frozen-train-server",
+  "device": "cuda:0",
+  "seed": 42,
+  "model": {
+    "sequence_length": 32,
+    "embedding_dim": 64,
+    "attention_dim": 32,
+    "linear_dim": 32,
+    "num_heads": 2,
+    "num_blocks": 2,
+    "dropout": 0.1
+  },
+  "epochs": 30,
+  "batch_size": 32,
+  "eval_batch_size": 64,
+  "num_workers": 0,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "temperature": 0.2,
+  "gradient_clip_norm": 1.0,
+  "ks": [
+    10,
+    20
+  ],
+  "selection_metric": "NDCG@10",
+  "train_users": null,
+  "eval_users": null,
+  "representation": "map-frozen",
+  "reference_config": "configs/hstu-microlens-train-server.json",
+  "feature_cache": "runs/title-features-minilm/20261023T013804609858Z",
+  "features_sha256": "af5c0482e9b37294e1e4817810d5e2b0b407c22759207078fd402f7ea0525b25",
+  "projection": "train-item-pca-v1",
+  "fusion_weight": 0.0
+}
