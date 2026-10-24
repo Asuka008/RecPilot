@@ -837,3 +837,17 @@ and syntax checks passed locally; real server verification pending. See note24.
 A candidate must not regress raw overall N10 and must have tail hits; selection
 is only for review, not significance or proof of improvement. Compare against
 stronger corrected HSTU too. Do not expand search automatically on failure.
+
+
+## Hybrid validation server PASS and recipe frozen (2026-10-24)
+
+Three tests and full validation PASS at runs/hybrid-validation/20261024T203229829396Z/results.json.
+Predeclared selection chose alpha.25: N10=.044361011644391685, R20=.11482;
+hits5741 vs raw5088, tail72 vs0, mid730 vs191, head4939 vs4897; zero remains0/844.
+N10 +17.59% vs raw and +9.95% vs corrected HSTU. Tail remains below ItemCF348.
+Alpha.5 has272 tail hits but regresses overall N10=.0360072778, so do not choose it.
+Freeze full .25 recipe with raw HSTU, training-only100-neighbor CF, eligible-CF-max
+normalization and no-evidence fallback. No added correction/title branch. Next
+implement frozen admission and one test evaluation, not more validation search.
+Test entry point not yet implemented. Single-seed selected validation result,
+not significance, cold-start solution or independent confirmation. See note24.
