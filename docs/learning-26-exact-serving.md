@@ -107,3 +107,15 @@ Python3.11.16、Torch2.10.0+cu128、NumPy1.26.4、CUDA runtime12.8，FP32/TF32�
 启动 11.377s。两路峰值 allocated/reserved 为 49,789,952/62,914,560 字节
 （约47.48/60MiB）；CF 位于 CPU，两路共享已加载资源，不能据此声称总服务只占这些内存。
 HTTP 实际启动与调用仍待确认，使用上一节命令即可，不必重跑本次 benchmark。
+
+## 服务器真实 HTTP 调用通过
+
+用户随后回传 `/health` 返回 ready、catalog_items=19220；
+`/recommend` 对 history=[1,2,3]、k=10 返回 10 个不同的映射 ID，均非 0/1/2/3，
+分数按降序排列。eligible_items=19217、fallback=none、mode=hybrid。
+两次响应 model_id 相同：
+`17aaae44451f3d9fe5de7e4ee9a6e2e3a3ff981bf55374c4d836227f76d9abdb`。
+这确认了真实 HTTP 请求到模型推理再到排序返回的调用链。请求为合成历史，
+不证明推荐内容符合真实用户兴趣，也未测量 HTTP 端到端延迟或并发能力。
+接口基本调用检查已完成，不必重复；空历史与非法输入此前有轻量适配测试，
+其真实网络调用尚未单独回传。

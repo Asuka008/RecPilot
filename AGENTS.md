@@ -900,3 +900,13 @@ not independent raw-only deployment memory. Batch1,concurrency1,warmup20 per mod
 are not concurrent throughput. Full report not locally inspected; RSS not returned.
 Do not repeat training, quality tests or benchmark without a reason. Next verify
 the actual loopback HTTP endpoint using note26 commands; live HTTP remains pending.
+
+## Live HTTP basic calls verified by user
+
+Server /health returned ready with19220items. /recommend history=[1,2,3],k=10
+returned10 unique positive IDs excluding all history, descending scores,
+eligible_items19217,fallback=none,mode=hybrid. Both responses share model_id
+17aaae44451f3d9fe5de7e4ee9a6e2e3a3ff981bf55374c4d836227f76d9abdb.
+Basic real HTTP path now verified; do not repeat benchmark or training.
+Synthetic request does not verify relevance. HTTP latency/concurrency unmeasured;
+fallback/error paths have adapter tests but live network calls not yet returned.

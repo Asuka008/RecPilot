@@ -472,5 +472,7 @@ benchmark. Model and training-only ItemCF load once; exact ranking filters full
 visible history. Seven server tests and the 100-request benchmark passed on A100
 MIG 2g.20gb: exact Top-20 parity, maximum score error 2.12e-7; hybrid mean/p95
 3.705/3.932 ms versus raw HSTU 3.354/3.438 ms. These are batch-one, serial,
-in-process timings excluding HTTP and startup; HTTP live checks remain pending.
+in-process timings excluding HTTP and startup. Server loopback /health and
+/recommend live calls subsequently passed: 10 unique recommendations, history
+excluded, matching model identities. HTTP latency and concurrency remain unmeasured.
 See [note 26](docs/learning-26-exact-serving.md) for the server checks and API example.
