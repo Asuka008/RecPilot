@@ -88,3 +88,45 @@ check both axes. Fifteen lightweight local tests pass; the updated server checks
 and real audit remain pending (17 focused tests total). Repeat validation
 inference only; no retraining, title encoding or test evaluation is needed.
 The failed run did not save per-user ranks, so inference must restart.
+
+
+## 2026-10-24 完整服务器诊断 PASS
+
+依据用户返回的控制台输出，17 个测试通过（7.413 秒），三个 HSTU 的两个
+验证轴及旧 ItemCF 的频次轴均复现。完整诊断 PASS，保存于
+`runs/recommendation-mechanism-audit/20261024T162518831454Z/results.json`。
+实际为 A100 MIG 2g.20gb、PyTorch 2.10.0+cu128、FP32，50,000 个验证用户。
+本地未独立读取服务器完整报告，最终耗时/峰值显存字段尚未返回。
+
+| 方法 | 总体 NDCG@10 | 低频 1–5 Top-20 命中/7264 | 零频 Top-20 命中/844 |
+|---|---:|---:|---:|
+| id | 0.03772423 | 0 | 0 |
+| title-init | 0.03793132 | 0 | 0 |
+| title-fusion | 0.03725231 | 0 | 0 |
+| itemcf | 0.02449499 | 348 | 0 |
+| title-mean-384 | 0.01405726 | 225 | 26 |
+| title-mean-384-permuted | 0.00032139 | 11 | 0 |
+| title-mean-64 | 0.01161999 | 202 | 23 |
+| title-mean-64-permuted | 0.00031425 | 3 | 2 |
+
+主要证据与解释：
+
+- 原始 HSTU 低频目标排名中位数 10428.5，Top-100/1000 仅 3/108 次命中；
+  init/fusion 中位数为 10642.5/10251。失败不是普遍卡在第 20 名边缘，
+  但这仍不能独立证明损失函数或某一层是根因。
+- 384 维标题低频命中 225，对照置换 11；64 维为 202，对照 3。
+  支持内容对应关系包含可用信号，不构成单次置换的显著性检验。
+- PCA 后低频 Top-20 命中从 225 降至 202，但 Top-1000 从 1497 升至 1712，
+  排名中位数也改善。不能简单认定 PCA 全面损坏语义，更不能解释 HSTU 的零命中。
+- 原始标题直接推荐零频命中 26，64 维命中 23；两个置换对照为 0/2。
+  这是已知目录、逐用户划分下的零训练交互结果，不是严格全局时间的新发布视频证据。
+- HSTU/ItemCF 共同命中 1943，独有 3145/1674；ItemCF 独有命中中
+  低频 348、中频 1011、高频 315。并集 6762（R@20 上限 .13524）
+  不是实际 Top-20 融合效果，零频仍无协同命中。
+
+下一项候选优先检验共享的内容到偏好映射，保持 HSTU 和冻结标题编码器。
+先明确历史/候选两端表示、参数量对照与验证指标，再做小型实现；ID 信息丢弃
+作为独立消融，不和映射同时混改。低频目标训练频次与全部用户/候选身份必须保持一致。
+当前内容映射尚未实现，也没有证据保证它能同时改善总体与低频指标。
+ItemCF 融合保留为已有协同信号的备选，不与新内容模型同时开展。
+不重复此次诊断或测试集评估，不将标题均值总体较差解释为可直接替代 HSTU。

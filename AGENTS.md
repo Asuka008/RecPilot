@@ -725,3 +725,20 @@ check both axes. Fifteen lightweight local tests pass; the updated server checks
 and real audit remain pending (17 focused tests total). Repeat validation
 inference only; no retraining, title encoding or test evaluation is needed.
 The failed run did not save per-user ranks, so inference must restart.
+
+
+## Full mechanism audit server PASS (2026-10-24)
+
+User returned 17 tests PASS (7.413s) and full audit PASS at
+runs/recommendation-mechanism-audit/20261024T162518831454Z/results.json.
+All three neural anchors and historical ItemCF frequency anchor reproduced.
+A100 MIG, torch2.10/cu128, 50000 validation users. Raw HSTU tail median rank
+10428.5, hits@100/1000=3/108. Raw384 title mean tail@20=225 vs permuted11;
+PCA64=202 vs permuted3. Zero-frequency hits=26/23 vs controls0/2. This supports
+usable title association, not significance or proven new-item temporal lift.
+PCA improves deeper tail recall despite reducing Top20; it is not the sole
+explanation for neural zero tail hits. ItemCF adds1674 exclusive hits, including
+348 tail and1011 mid; union6762 is an oracle upper bound, not fusion performance.
+Prioritize a separately specified learned shared content mapping hypothesis;
+ID dropout is a separate ablation. No new mapper implemented or gain established.
+Do not rerun the completed audit. Detailed evidence is appended to note22.
