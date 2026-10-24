@@ -464,3 +464,11 @@ relative to the fixed frequency-corrected HSTU. Frequency 1–5 targets have 86
 Top-20 hits; zero-frequency targets still have none. This is one seed on a reused
 offline benchmark, not statistical significance or online lift. No rerun is required.
 See [note 25](docs/learning-25-frozen-hybrid-test.md) for commands and limitations.
+
+### Exact recommendation service (awaiting server verification)
+
+The frozen hybrid now has a loopback HTTP interface and a label-free parity/latency
+benchmark. Model and training-only ItemCF load once; exact ranking filters full
+visible history. Six lightweight local tests passed. Neural parity and real-device
+latency await the server; no production throughput claim is made.
+See [note 26](docs/learning-26-exact-serving.md) for the server checks and API example.

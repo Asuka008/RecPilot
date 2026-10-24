@@ -1,0 +1,11 @@
+{
+  "recipe": "configs/hybrid-selected-test-server.json",
+  "device": "cpu",
+  "host": "127.0.0.1",
+  "port": 8765,
+  "max_history": 4096,
+  "max_k": 100,
+  "warmup": 2,
+  "requests": 5,
+  "output_dir": "runs/hybrid-serving"
+}

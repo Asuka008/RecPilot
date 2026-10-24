@@ -1,0 +1,11 @@
+{
+  "recipe": "configs/hybrid-selected-test-server.json",
+  "device": "cuda:0",
+  "host": "127.0.0.1",
+  "port": 8765,
+  "max_history": 4096,
+  "max_k": 100,
+  "warmup": 20,
+  "requests": 100,
+  "output_dir": "runs/hybrid-serving"
+}

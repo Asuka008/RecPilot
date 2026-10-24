@@ -870,3 +870,17 @@ Do not rerun training/test or tune from this result. Single seed and reused benc
 no significance, online-lift or solved-cold-start claims. Next proposed milestone is
 exact-catalog serving with measured latency/resource cost; not implemented yet.
 See note25 for full result and limitations.
+
+## Exact hybrid serving implemented; server verification pending
+
+Isolated serving/ package keeps all historical source inventories unchanged.
+Frozen alpha=.25, authenticated startup, training-only ItemCF, exact full-catalog
+ranking, complete visible-history filtering; requests use mapped IDs only.
+Empty history uses training popularity, absent CF evidence uses raw HSTU;
+invalid IDs are rejected. Loopback-only serial HTTP demo has no new dependencies.
+Six lightweight local tests passed; one tiny neural CPU test awaits server.
+Benchmark first compares original offline batches with request-at-a-time scores
+(atol1e-6, exact Top20) on training histories, then measures raw/hybrid batch1,
+concurrency1, warmup20,100requests, FP32 synchronized core latency excluding HTTP.
+No repeated test-quality evaluation or new tuning. Server correctness and measured
+latency remain unverified. See docs/learning-26-exact-serving.md for commands.
