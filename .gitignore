@@ -40,3 +40,12 @@ wandb/
 .env.*
 *.local.yaml
 *.local.yml
+
+# Local mentoring notes, tests, and backup archives
+/AGENTS.md
+/Agent.md
+/AGENT.md
+/docs/
+/tests/
+/test/
+/.local-backups/

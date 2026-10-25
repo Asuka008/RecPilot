@@ -8,7 +8,7 @@ variables.
 catalog. It deliberately has no sampled candidate or user limit. Execute it on
 the server, not as a Mac smoke test. Paths resolve from the repository root;
 `--data-dir` and `--output-dir` can override them without editing shared config.
-Use `python -m unittest tests.test_baselines -v` for tiny synthetic local checks.
+Development tests are maintained separately in the local workspace.
 
 MicroLens HSTU configurations share the same Dataset, portable IDHSTU and exact
 ranking protocol. Catalog size comes from `item_mapping.json`, not model config.
@@ -32,7 +32,7 @@ Continue at completed epoch boundaries with the same config and
 an intentional partial run without changing the configured training horizon.
 Evaluate explicitly with `evaluate --config CONFIG --checkpoint RUN/best.pt
 --split val`. Full configs require all users, and smoke configs reject test
-evaluation. See `docs/learning-11-microlens-hstu.md` for the server workflow.
+evaluation.
 
 
 `hstu-score-audit-server.json` references the completed full-data run and fixes
@@ -47,7 +47,7 @@ The validation grid selected alpha=0.5, and its frozen test subsequently passed 
 an output directory only. Its evaluator verifies the saved validation winner and
 runs that one correction recipe on test; it rejects alpha overrides, failed
 validation status, or changed scoring/model/checkpoint/data identities.
-See `docs/learning-15-selected-score-test.md` for the server commands.
+Run `python scripts/evaluate_hstu_score_selection.py --config configs/hstu-score-selected-test-server.json`.
 
 
 Mean-control configs (`mean-pooling-debug.json`, `mean-pooling-smoke-server.json`,
@@ -57,7 +57,7 @@ corrections are rejected. The model fields specify the frozen reference
 initializer, not attention layers in the mean control. The only trainable tensor
 is the shared ID table. Start with the three-epoch server smoke, then review the
 full-data 30-epoch candidate. Both use raw cosine scoring and validation NDCG@10
-selection; see teaching note 17. Run with `python -m controls.run_mean_pooling`.
+selection. Run with `python -m controls.run_mean_pooling`.
 
 
 `title-features-minilm-server.json` is a feature-preparation configuration, not
@@ -65,7 +65,7 @@ an HSTU training recipe. It pins the encoder repository/revision, transformers
 version, 384-dimensional FP32 output, token truncation, batch size and device.
 Use `python scripts/prepare_title_features.py preflight` before environment
 changes. Then audit/smoke/build produce independent reports under runs/; the
-64-item smoke artifact is not a valid full cache. See teaching note 19.
+64-item smoke artifact is not a valid full cache.
 
 
 Title HSTU configs (`title-init-{debug,smoke-server,train-server}.json` and
@@ -74,13 +74,11 @@ feature cache and its SHA256. All original experiment fields except output_dir
 must match their named HSTU reference. `train-item-pca-v1` is fitted on distinct
 items in selected training histories; initialization uses fusion_weight=0 and
 fixed fusion uses 0.5. Both use the same representation for history and candidates.
-Run `python -m content_hstu.run train --config CONFIG`. Start with the 17 tests
-and both server smokes in note 20; full-data configs are provided for after that
-gate. No extra dependencies, title re-encoding or test-based tuning is required.
+Run `python -m content_hstu.run train --config CONFIG`. Start with both server smoke configurations before full-data training. No extra dependencies, title re-encoding or test-based tuning is required.
 
 
 `hstu-title-selected-test-server.json` freezes the three completed validation
 report paths and the selected title-init epoch30 candidate. It is an evaluation
 admission recipe, not a training config. Run
 `python scripts/evaluate_selected_title.py` (or `--check-only` for report/file
-checks without model execution). No scoring/epoch override is exposed; see note20.
+checks without model execution). No scoring/epoch override is exposed.

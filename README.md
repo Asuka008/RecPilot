@@ -44,8 +44,6 @@ The table counts test users whose target appears in the Top 20, grouped by **tar
 
 The hybrid improves some sparse targets while losing a small number of frequent-target hits relative to frequency correction. Recall@20 in the 1–5 group is still only **0.744%**, and zero-frequency targets still receive no hits. Long-tail recommendation and cold start remain unresolved.
 
-See the [frozen hybrid test record](docs/learning-25-frozen-hybrid-test.md).
-
 ## Approach and Experimental Rationale
 
 ```mermaid
@@ -79,7 +77,7 @@ When CF has no eligible signal, scoring falls back to raw HSTU. Empty histories 
 | Shared title mapping | Gains from learning the mapping mainly come from frequent targets; zero-frequency and lowest-frequency groups decline. Stop this recipe. |
 | HSTU + ItemCF | Diagnostics identify exclusive hits in both channels. Bounded validation fusion and frozen test evaluation show a single-seed gain; select this recipe for serving. |
 
-These controls support the current engineering decision. They do not establish that text features are generally ineffective or isolate attention/order as the cause of gains. See the [title controls](docs/learning-20-title-hstu-controls.md), [shared mapping experiment](docs/learning-23-shared-title-mapping.md), [mechanism audit](docs/learning-22-validation-mechanism-audit.md), and [hybrid validation](docs/learning-24-hybrid-validation.md).
+These controls support the current engineering decision. They do not establish that text features are generally ineffective or isolate attention/order as the cause of gains.
 
 ### Upstream Implementation Checks
 
@@ -130,7 +128,7 @@ curl --fail http://127.0.0.1:8765/recommend \
 
 `history` contains **mapped IDs** from `item_mapping.json`, ordered oldest to newest. Responses include `items`, `fallback`, `eligible_items`, `model_id`, and `mode`; seen items are excluded. This synthetic request does not represent a real user's preferences. Invalid IDs return HTTP 400; empty histories return popularity recommendations.
 
-See the [serving guide](docs/learning-26-exact-serving.md) for full commands, limits, and artifact-admission dependencies. The current implementation is a local sequential demonstration service.
+The current implementation is a local sequential demonstration service. Artifact paths and request limits are configured in [the serving configuration](configs/hybrid-serving-server.json).
 
 ## Data and Reproduction
 
@@ -158,20 +156,19 @@ Model, DataLoader, training, and GPU validation run on the Linux server. The Mac
 
 Environment specifications are in the [Conda file](environments/hstu-reference.yml) and [requirements file](environments/hstu-reference-requirements.txt). For a new environment, use the [preparation script](scripts/prepare_hstu_reference.py) to inspect Python/Conda/Torch/CUDA before planning installation. The driver's reported CUDA capability does not identify the installed runtime.
 
-| Stage | Entry points and documentation |
+| Stage | Entry points |
 |---|---|
-| Data and shared evaluation | [Dataset](src/data/dataset.py), [metrics](src/evaluation.py), [baselines](docs/learning-04-evaluation-and-baselines.md) |
-| MicroLens HSTU | [Integration and checks](docs/learning-11-microlens-hstu.md), [full training](docs/learning-12-microlens-full-training.md) |
-| Diagnostics and controls | [Mean pooling](docs/learning-17-prefix-mean-control.md), [title features](docs/learning-19-frozen-title-features.md), [mechanism audit](docs/learning-22-validation-mechanism-audit.md) |
-| Frozen hybrid | [Validation fusion](docs/learning-24-hybrid-validation.md), [frozen test](docs/learning-25-frozen-hybrid-test.md) |
-| Serving and performance | [API, parity, and measurements](docs/learning-26-exact-serving.md) |
+| Data and shared evaluation | [Dataset](src/data/dataset.py), [metrics](src/evaluation.py), [baselines](src/run_baselines.py) |
+| MicroLens HSTU | [Training and evaluation](src/run_hstu_microlens.py), [configuration guide](configs/README.md) |
+| Diagnostics and controls | [Mean pooling](controls/run_mean_pooling.py), [title features](scripts/prepare_title_features.py), [mechanism audit](scripts/audit_recommendation_mechanisms.py) |
+| Frozen hybrid | [Validation fusion](scripts/evaluate_hybrid_validation.py), [frozen test](scripts/evaluate_selected_hybrid.py) |
+| Serving and performance | [Service entry point](serving/run.py), [benchmark](serving/benchmark.py) |
 
-A fresh reproduction must generate data, train baselines/models, complete validation selection, and then run fixed evaluation and serving. Existing admission configurations reference original timestamped artifacts. New runs must explicitly configure their corresponding artifacts rather than disable hash checks to bypass dependencies. Linked teaching notes are primarily in Chinese.
+A fresh reproduction must generate data, train baselines/models, complete validation selection, and then run fixed evaluation and serving. Existing admission configurations reference original timestamped artifacts. New runs must explicitly configure their corresponding artifacts rather than disable hash checks to bypass dependencies. Teaching notes and the development test suite are maintained locally and are not included in this checkout.
 
 With existing artifacts, run the serving checks:
 
 ```bash
-python -m unittest tests.test_serving tests.test_serving_torch -v
 python -m serving.run benchmark --config configs/hybrid-serving-server.json
 ```
 
@@ -179,7 +176,7 @@ All seven focused serving tests and the benchmark passed on the server. Document
 
 ### Experiment Artifacts
 
-Code, configurations, tests, and documentation are synchronized through Git. Raw/processed data, physical environments, logs, caches, and checkpoints are excluded. Formal runs record Git state, configuration, seed, data checksums, actual hardware, and relevant versions. Serving also records model identity and source-file hashes. Checkpoints use `state_dict`; outputs live under ignored `runs/` directories.
+Runtime code, configurations, environment specifications, and repository README files are synchronized through Git. Assistant instructions, teaching notes (`docs/`), and development tests (`tests/`) are retained locally and excluded from future commits. Raw/processed data, physical environments, logs, caches, and checkpoints are excluded. Formal runs record Git state, configuration, seed, data checksums, actual hardware, and relevant versions. Serving also records model identity and source-file hashes. Checkpoints use `state_dict`; outputs live under ignored `runs/` directories.
 
 | Completed run | Directory under `runs/` |
 |---|---|
@@ -204,12 +201,12 @@ diagnostics/      Mechanism diagnostics, statistics, and artifact admission
 serving/          Request validation, model loading, HTTP, and core benchmarks
 scripts/          Environment preparation, audits, and frozen evaluation
 configs/          Experiment and device configurations
-tests/            Focused data, metric, model, and serving checks
-docs/             Teaching notes, experimental decisions, and evidence
+environments/     Reproducible environment specifications
+third_party/      Upstream license notices
 ```
 
 ## Limitations and Next Steps
 
 The frozen recipe has completed offline evaluation and a local HTTP demonstration. Multi-seed robustness, global-time replay, HTTP concurrency, and online gains remain unverified. There is no full SASRec comparison, so no superiority over SASRec is claimed. Negative title results apply to the tested recipes. Agents are outside the current implementation scope; MiniOneRec and related models remain reading references.
 
-Next priorities are shareable experiment artifacts and demonstrations, followed by end-to-end service measurements and robustness checks as needed. Exact scoring is already measured at the current catalog size; ANN or a new backbone would require additional evidence.
+Development is currently paused at this verified milestone. Possible future work includes shareable experiment artifacts, end-to-end service measurements, and robustness checks. Exact scoring is already measured at the current catalog size; ANN or a new backbone would require additional evidence.
