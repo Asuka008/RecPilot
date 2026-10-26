@@ -1,4 +1,4 @@
-# AgenticRec
+# RecPilot
 
 An **HSTU + ItemCF** video recommendation project on MicroLens-50K, covering data preprocessing, reference implementation checks, offline evaluation, error diagnosis, controlled experiments, and an HTTP recommendation service.
 
