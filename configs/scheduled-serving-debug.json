@@ -1,0 +1,12 @@
+{
+  "runtime_config": "configs/hybrid-serving-debug.json",
+  "host": "127.0.0.1",
+  "port": 8766,
+  "queue_capacity": 16,
+  "max_connections": 64,
+  "listen_backlog": 128,
+  "request_timeout_ms": 200,
+  "response_reserve_ms": 10,
+  "shutdown_grace_seconds": 5,
+  "output_dir": "runs/scheduled-serving-debug"
+}
