@@ -2,8 +2,10 @@
 
 This module measures the existing recipe without modifying checkpoint-bound source
 files, training configurations, serving behavior, or frozen quality results.
-GPU execution is pending server verification. Local checks cover standard-library
-statistics, instrumentation restoration and synthetic loopback HTTP load only.
+Both core entry points returned server PASS on 2026-11-07; their JSON reports
+have been inspected. Raw traces and real-service HTTP load curves remain pending.
+Local checks cover standard-library statistics, instrumentation restoration and
+synthetic loopback HTTP load only.
 
 ## Server procedure
 
@@ -100,3 +102,57 @@ health model ID with the core report for hardware and model provenance.
 Initial completion criterion: successful server core runs plus an HTTP load curve
 showing throughput, tail latency and failure/drop rates. Only then choose the next
 optimization. Do not infer concurrent capacity from reciprocal batch-one latency.
+
+## Verified core measurements: 2026-11-07
+
+Returned JSON reports were inspected for serving run `20261107T210935152729Z`
+and training run `20261107T211029879526Z`, at clean server commit `254444e`.
+All five benchmark source hashes match the local implementation. Both reports
+identify the same frozen model and request corpus. Raw `trace.json` and
+`operators.txt` have not been inspected. The profiler cycle-accumulation warning
+alone does not invalidate this single continuous capture or independent plain pass.
+
+Actual environment: A100-SXM4-80GB MIG 2g.20gb, 19.50 GiB visible, PyTorch
+2.10.0+cu128, CUDA runtime 12.8, FP32, TF32 off, 24 CPU threads. These are not
+H200 results. Each plain pass measured 100 steps after 20 warmup steps.
+
+| Plain baseline | Result |
+|---|---:|
+| Serving mean / p50 / p95 / p99 | 3.749 / 3.646 / 3.909 / 4.310 ms |
+| Serial in-process serving throughput | 266.21 requests/s |
+| Serving peak allocated / reserved | 47.47 / 54.00 MiB |
+| Training window, 100 steps | 1.32224 s |
+| Training effective prediction positions | 13,438 |
+| Training effective positions/s | 10,163.04 |
+| Training peak allocated / reserved | 151.83 / 194.00 MiB |
+| Bounded validation, 6,400 users | 2.83962 s |
+
+Serving excludes HTTP and queueing. Training uses a disposable copy with a fresh
+optimizer, not an original epoch. Training memory includes the resident admitted
+model; GPU allocator peaks exclude CPU CF and external allocations. Lifetime peak
+process RSS was 1.418 GiB (serving) and 2.050 GiB (training), including startup and
+diagnostic passes, not an isolated steady-state allocation.
+
+Synchronized diagnostic exclusive means (shares of summed exclusive stage time):
+
+| Stage | Serving ms / share | Training ms / share |
+|---|---:|---:|
+| User encoder | 2.634 / 62.14% | 3.398 / 23.51% |
+| Backward, all model/loss components | — | 5.139 / 35.56% |
+| Checks and step overhead | — | 3.043 / 21.06% |
+| Data wait | — | 1.093 / 7.57% |
+| Candidate scoring forward | 0.299 / 7.05% | 0.393 / 2.72% |
+| Input preparation and transfer | 0.356 / 8.40% | — |
+| ItemCF | 0.272 / 6.43% | — |
+| Filtering and Top-K | 0.293 / 6.91% | — |
+
+The diagnostic passes took 14.77% (serving) and 9.60% (training) longer than
+plain passes. Their percentages are not additive estimates of plain runtime or
+promised optimization savings. Encoder includes input compaction, embeddings,
+normalization and attention; backward includes the scoring/loss path as well.
+Checks overhead includes finite checks, clipping, scalar extraction and other
+step work. CPU/GPU synchronization is a hypothesis to inspect in the trace,
+not yet an operator-level conclusion. No attention-only bottleneck, FSDP need,
+or concurrent service capacity has been established. Proceed with HTTP load
+using `runs/performance/20261107T210935152729Z/requests.json`; do not rerun these
+core measurements just to suppress the profiler warning.
