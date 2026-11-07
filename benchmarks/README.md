@@ -3,12 +3,15 @@
 This module measures the existing recipe without modifying checkpoint-bound source
 files, training configurations, serving behavior, or frozen quality results.
 Both core entry points returned server PASS on 2026-11-07; their JSON reports
-have been inspected. Raw traces and real-service HTTP load curves remain pending.
+have been inspected. All eight HTTP load reports and both operator tables were
+subsequently reviewed; see [results and limits](RESULTS-2026-11-07.md). Full raw
+trace timelines remain uninspected.
 Local checks cover standard-library statistics, instrumentation restoration and
 synthetic loopback HTTP load only.
 
 ## Server procedure
 
+Run from the project root (for the existing server: `cd "$HOME/AgenticRec"`).
 Use the verified project environment and inspect the actual allocation first:
 
 ```bash
@@ -63,13 +66,15 @@ change the existing HTTP service or its serial processing behavior.
 
 ## End-to-end HTTP load
 
-After core measurement finishes, start the existing service in terminal A:
+After core measurement finishes, start the existing service in terminal A from
+the project root:
 
 ```bash
 python -m serving.run serve --config configs/hybrid-serving-server.json
 ```
 
-In terminal B, set the exact request file printed by the **serving** benchmark:
+In terminal B, also enter the project root, activate the environment, and set
+the exact request file printed by the **serving** benchmark:
 
 ```bash
 REQUESTS=runs/performance/REPLACE_WITH_SERVING_RUN/requests.json
@@ -108,8 +113,9 @@ optimization. Do not infer concurrent capacity from reciprocal batch-one latency
 Returned JSON reports were inspected for serving run `20261107T210935152729Z`
 and training run `20261107T211029879526Z`, at clean server commit `254444e`.
 All five benchmark source hashes match the local implementation. Both reports
-identify the same frozen model and request corpus. Raw `trace.json` and
-`operators.txt` have not been inspected. The profiler cycle-accumulation warning
+identify the same frozen model and request corpus. At the initial core review, raw traces and operator tables had not been inspected.
+The later [HTTP/operator review](RESULTS-2026-11-07.md) supersedes this pending
+operator status; raw trace timelines still have not been inspected. The profiler cycle-accumulation warning
 alone does not invalidate this single continuous capture or independent plain pass.
 
 Actual environment: A100-SXM4-80GB MIG 2g.20gb, 19.50 GiB visible, PyTorch
@@ -152,7 +158,26 @@ promised optimization savings. Encoder includes input compaction, embeddings,
 normalization and attention; backward includes the scoring/loss path as well.
 Checks overhead includes finite checks, clipping, scalar extraction and other
 step work. CPU/GPU synchronization is a hypothesis to inspect in the trace,
-not yet an operator-level conclusion. No attention-only bottleneck, FSDP need,
-or concurrent service capacity has been established. Proceed with HTTP load
+not yet an operator-level conclusion. Neither an attention-only bottleneck nor a need for FSDP
+has been established. The initial core review did not establish concurrent
+capacity; the subsequent HTTP load evidence is recorded in the linked report.
+For a future reproduction, proceed with HTTP load
 using `runs/performance/20261107T210935152729Z/requests.json`; do not rerun these
 core measurements just to suppress the profiler warning.
+
+
+## Returning HTTP reports
+
+From the project root, package completed reports without rerunning measurements:
+
+```bash
+find runs/http-load -mindepth 2 -maxdepth 2 -type f -name results.json -print0 |
+  tar --null -czf /tmp/http-load-results.tar.gz --files-from=-
+tar -tzf /tmp/http-load-results.tar.gz
+mkdir -p runs/exports
+cp /tmp/http-load-results.tar.gz runs/exports/http-load-results.tar.gz
+```
+
+Download the file from `AgenticRec/runs/exports/` in Jupyter's file browser.
+Exports remain ignored by Git. Inspect the archive list to ensure it contains
+only the intended runs. Do not commit raw reports or archives.

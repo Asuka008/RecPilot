@@ -4,7 +4,7 @@ An **HSTU + ItemCF** video recommendation project on MicroLens-50K, covering dat
 
 The frozen recipe combines HSTU's sequential representations with ItemCF's collaborative signals. Test **NDCG@10 improves by 18.72%** over pure-ID HSTU and **8.31%** over the fixed frequency-corrected baseline. Scoring parity, core latency, and live HTTP calls have been verified on an A100 MIG allocation.
 
-> Updated: 2026-10-24. Results are based on server outputs returned by the project owner; full artifacts remain on the server. Evidence is limited to single-seed offline experiments on a benchmark reused across several frozen recipes. Statistical significance, online CTR/watch-time gains, and production readiness have not been established.
+> Updated: 2026-11-07. Results are based on server outputs returned by the project owner; full artifacts remain on the server. Evidence is limited to single-seed offline experiments on a benchmark reused across several frozen recipes. Statistical significance, online CTR/watch-time gains, and production readiness have not been established.
 
 ## What This Project Delivers
 
@@ -106,7 +106,26 @@ Against the original offline batched scorer, 100 training-history samples produc
 
 Conditions: 19,220 candidates, batch size 1, concurrency 1, 20 warmup requests and 100 measured requests per mode, with CUDA synchronization around each timed request. Timing includes input validation, inference, GPU-to-CPU transfer, CF scoring, and ranking; it **excludes HTTP, queueing, and startup**. Mean hybrid overhead is approximately 0.35 ms (10.45%). Startup takes approximately 11.38 s. A 100-request sample does not establish stable production tail latency.
 
-Both modes share the loaded model and CF. Peak PyTorch allocated/reserved memory is approximately 47.48/60 MiB; this excludes CPU ItemCF storage and some external allocations and is not total service memory. Live health and recommendation calls passed. HTTP end-to-end latency and concurrent throughput remain unmeasured.
+Both modes share the loaded model and CF. Peak PyTorch allocated/reserved memory is approximately 47.48/60 MiB; this excludes CPU ItemCF storage and some external allocations and is not total service memory. Live health and recommendation calls passed. Subsequent HTTP load measurements are summarized below; they do not change the scope of this earlier core-only benchmark.
+
+### HTTP Load Baseline (2026-11-07)
+
+Eight returned 60-second loopback load reports were checked against their raw
+samples. With scheduled arrivals at 200/s, all 12,000 requests succeeded with
+no client drops; successful HTTP p99 was 18.05 ms. At 400 scheduled arrivals/s,
+successful window throughput fell to 193.87 QPS, 12,210 of 24,000 arrivals were
+client-dropped and 134 attempted requests failed. Successful HTTP p99 reached
+3.098 seconds. Drops occurred in the bounded client, not as server overload
+responses. The server currently processes requests serially.
+
+Closed concurrency 4 reached 243.58 successful QPS with no errors. At concurrency
+32, 1.995% of attempts failed: success-only p99 was 36.93 ms, whereas p99 of time
+to success **or failure** was 5.005 seconds. This distinction matters for tail
+latency reporting. These are single-run observations, not a sustainable capacity
+or availability guarantee. The workload/model identity matches the core report;
+HTTP client reports do not independently record server hardware utilization.
+
+See [complete load results, operator evidence and next experiment](benchmarks/RESULTS-2026-11-07.md).
 
 ### Run with Existing Server Artifacts
 
@@ -207,6 +226,6 @@ third_party/      Upstream license notices
 
 ## Limitations and Next Steps
 
-The frozen recipe has completed offline evaluation and a local HTTP demonstration. Multi-seed robustness, global-time replay, HTTP concurrency, and online gains remain unverified. There is no full SASRec comparison, so no superiority over SASRec is claimed. Negative title results apply to the tested recipes. Agents are outside the current implementation scope; MiniOneRec and related models remain reading references.
+The frozen recipe has completed offline evaluation and a local HTTP demonstration. Multi-seed robustness, global-time replay, production availability and online gains remain unverified. Initial HTTP concurrency measurements are complete and expose overload failures. There is no full SASRec comparison, so no superiority over SASRec is claimed. Negative title results apply to the tested recipes. Agents are outside the current implementation scope; MiniOneRec and related models remain reading references.
 
-An isolated performance baseline is now implemented in [benchmarks/](benchmarks/README.md): plain core timing, training-stage attribution, CPU/CUDA traces, and closed/open-loop HTTP load. Lightweight local checks passed. Both core benchmark entry points returned server PASS on 2026-11-07; the returned JSON reports show 3.749 ms mean core serving latency and 10,163 effective supervised positions/s in the disposable training window on A100 MIG 2g.20gb. Raw traces have not been inspected, and real-service HTTP load curves remain pending. Follow the linked server procedure before selecting optimizations. Possible later work includes shareable experiment artifacts and robustness checks. Exact scoring is already measured at the current catalog size; ANN or a new backbone would require additional evidence.
+An isolated performance baseline is now implemented in [benchmarks/](benchmarks/README.md): plain core timing, training-stage attribution, CPU/CUDA traces, and closed/open-loop HTTP load. Lightweight local checks passed. Both core benchmark entry points returned server PASS on 2026-11-07; the returned JSON reports show 3.749 ms mean core serving latency and 10,163 effective supervised positions/s in the disposable training window on A100 MIG 2g.20gb. Both operator tables and all eight real-service HTTP load reports have been inspected; raw trace timelines remain uninspected. The initial performance baseline is complete. The next proposed experiment is bounded request scheduling and explicit overload handling, followed by a controlled batching comparison. Possible later work includes shareable experiment artifacts and robustness checks. Exact scoring is already measured at the current catalog size; ANN or a new backbone would require additional evidence.
