@@ -90,7 +90,8 @@ grace is explicitly reported as not drained, rather than claimed to be cancelled
 
 Local verification: 13 standard-library scheduler/HTTP/collector tests passed,
 plus four existing benchmark tests, syntax and CLI checks. They use synthetic
-engines, not PyTorch. Real model parity and performance await server execution.
+engines, not PyTorch. Real-model HTTP parity has subsequently passed on the server; new load
+measurements remain pending (see the verification record below).
 Developer tests and teaching notes remain local-only under the repository policy.
 
 In the server project root, activate the existing environment and inspect the
@@ -164,3 +165,31 @@ it is not permission to run real model benchmarks on the Mac.
    degradation, not successful recommendation throughput.
 5. Repeat important operating points before claiming stable improvements. If
    batching follows, measure it as a separate change with another parity check.
+
+
+## Server parity verified
+
+The returned report `runs/scheduled-serving/20261108T022625745414Z/results.json`
+was inspected. It records PASS at commit `6bba2c8`, A100-SXM4-80GB MIG 2g.20gb,
+PyTorch 2.10.0+cu128, FP32/TF32 off and 24 Torch CPU threads. All six scheduling
+source hashes and the scheduling config hash match the local implementation.
+The working tree had an untracked `http-load-results.tar.gz`; the source hashes
+match, but this is not described as a clean Git working tree.
+
+All 101 requests (100 training histories and the empty-history fallback) returned
+exactly the same response as the direct reference, including returned item IDs,
+scores and metadata. This checks returned Top-K responses, not every catalog
+score on every possible input. The invalid-history request returned 400. Counters
+show 101 admitted/completed jobs and 101 recommendation responses written as 200;
+no timeout, overload, inference-error or disconnect events were recorded in this
+sequential check. Health and metrics endpoints also passed.
+
+Worker and handlers drained successfully. Final queue depth, active inference
+and connection count are all zero. Final readiness is false because the check
+has intentionally stopped the service, not because startup failed. The frozen
+model ID remains `17aaae44451f3d9fe5de7e4ee9a6e2e3a3ff981bf55374c4d836227f76d9abdb`;
+the scheduler service ID is
+`d9a87e9b6ab2ba9753bbe42b00117a62e8cc56381d935fb4fe985051d272b649`.
+
+No load-capacity or latency improvement is inferred from this check. Proceed to
+serve/load commands above; do not repeat parity for documentation-only changes.
