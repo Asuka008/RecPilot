@@ -192,3 +192,34 @@ the scheduler service ID is
 `d9a87e9b6ab2ba9753bbe42b00117a62e8cc56381d935fb4fe985051d272b649`.
 
 The subsequent [load comparison](RESULTS-2026-11-08.md) records the overload behavior and the throughput regression.
+
+## Isolating HTTP thread creation at 200 requests per second
+
+The first bounded service returned 163 overload responses out of 12,000 at this rate. Its successful HTTP p99 was 108.61 ms. The serial reference served all 12,000 at 18.05 ms p99 on an A100 MIG 2g.20gb. The following experiment tests whether creating threads for every connection contributed to this gap.
+
+| Transport | HTTP handlers | Deadline enforcement |
+|---|---|---|
+| `original` | New thread per admitted connection | New timer per admitted connection |
+| `shared-timer` | New thread per admitted connection | One monitor per server |
+| `handler-pool` | 64 reusable threads started before load | New timer per admitted connection |
+| `pool-and-shared-timer` | Same pool | Same monitor |
+
+All four use the same instrumented code revision, frozen model and request corpus, batch size 1, one inference worker, 16 waiting jobs, 64 connection slots and a 200 ms deadline from accept. The contemporary control is `original`. Every registered socket keeps its connection slot through handler cleanup. The shared monitor watches deadlines in accept order and wakes the handler by shutting down an expired socket.
+
+On the server, stop any other load test or copy of the recommendation service using this GPU. Run from the checkout in one terminal.
+
+```bash
+cd "$HOME/AgenticRec"
+git pull --ff-only
+conda activate "$HOME/conda-envs/agenticrec-hstu-reference"
+nvidia-smi
+python -m scheduled_serving.compare
+```
+
+Each transport runs in a fresh process on a temporary loopback port. Before measurement, each instance checks 100 training histories and the empty-history fallback against direct inference, checks the invalid-input response, and warms the load path. A separate client process sends 200 arrivals/s for 60 seconds. The second round reverses transport order. Each server drains and exits automatically. The eight load windows take eight minutes in total, plus model startup, verification and report writing.
+
+The terminal prints `Transport comparison: COMPLETE` after all measured runs and a path to `runs/transport-comparison/<timestamp>/summary.json`. Return that one file. It contains the checked runtime, identities, per-round outcomes, thread starts, CPU seconds, mean queue and core times, late discards and client tails. Raw request timings stay in the adjacent trial directories. CPU seconds cover the service process, including its warm worker during the snapshot interval and control requests around the load. The client runs in its own process.
+
+The primary target is **12,000 valid responses out of 12,000 offered and successful HTTP p99 ≤ 20 ms in each of the two rounds**. This is an experiment target set from the historical serial observation. Also check successful QPS inside the window, p99 from scheduled arrival, and client dispatch lag. Compare `original` with each single change and then with the combined setting in both rounds. A large drop in thread starts with little change in successful QPS or tail latency is evidence to investigate another source of delay. Two observations per variant support a directional comparison on this hardware.
+
+For a separate overload comparison, `python -m scheduled_serving.compare --settings open-400 closed-32` runs only those two load points. Compare offered success, all-attempt latency, 503/504 counts and client drops. With closed-loop load, fast refusals can increase the number of attempted requests.

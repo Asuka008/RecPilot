@@ -1,6 +1,7 @@
 """Run the existing load generator with per-point scheduler metric snapshots."""
 import argparse
 from collections import Counter
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -9,6 +10,10 @@ from urllib.parse import urlsplit
 
 from benchmarks.common import digest, distribution, output_dir, provenance, write
 from benchmarks.http_load import exchange, run_load, validate_response
+
+
+SETTINGS = {**{f'closed-{c}': ('closed', c, 100.) for c in (1, 4, 16, 32)},
+            **{f'open-{r}': ('open', 32, float(r)) for r in (50, 100, 200, 400)}}
 
 
 def read_metrics(host, port, identity, service_id, instance_id):
@@ -48,22 +53,26 @@ def main():
     parser.add_argument('--requests', required=True, type=Path)
     parser.add_argument('--duration', type=float, default=60)
     parser.add_argument('--output', default='runs/scheduled-load')
+    parser.add_argument('--settings', nargs='+', choices=SETTINGS, default=list(SETTINGS))
     args = parser.parse_args()
     url = urlsplit(args.url)
     if url.scheme != 'http' or url.hostname not in {'127.0.0.1', 'localhost'} or url.path not in {'', '/'} or url.query or url.fragment or url.username:
         parser.error('Only plain loopback HTTP origins are supported')
     if not math.isfinite(args.duration) or args.duration <= 0:
         parser.error('duration must be positive and finite')
+    if len(set(args.settings)) != len(args.settings):
+        parser.error('settings must be distinct')
     out = output_dir(args.output)
     base = {'arguments': {**vars(args), 'requests': str(args.requests)}, 'provenance': provenance(),
-            'collector_sha256': digest(__file__), 'requests_sha256': digest(args.requests),
+            'collector_sha256': digest(__file__),
             'scope': 'Same benchmark client and connection policy as baseline; scheduler telemetry added. Single-worker, no batching.'}
-    points = [('closed', c, 100.) for c in [1, 4, 16, 32]] + [('open', 32, r) for r in [50., 100., 200., 400.]]
-    reports = []
+    settings_started = []
     status = 'RUNNING'
     failure = None
     try:
-        requests = json.loads(args.requests.read_text())
+        corpus = args.requests.read_bytes()
+        base['requests_sha256'] = hashlib.sha256(corpus).hexdigest()
+        requests = json.loads(corpus)
         if not isinstance(requests, list) or not requests:
             raise ValueError('Expected nonempty request array')
         host, port = url.hostname, url.port or 80
@@ -73,10 +82,10 @@ def main():
         base['health'] = health
         identity, service_id = health['model_id'], health['service_id']
         instance_id = health['instance_id']
-        for mode, concurrency, rate in points:
-            label = f'{mode}-{concurrency if mode == "closed" else int(rate)}'
+        for label in args.settings:
+            mode, concurrency, rate = SETTINGS[label]
             report = {**base, 'status': 'RUNNING', 'setting': label}
-            reports.append(report)
+            settings_started.append(label)
             try:
                 # Warmup is outside both the load and the telemetry delta.
                 for i in range(20):
@@ -123,7 +132,7 @@ def main():
         raise
     finally:
         write(out / 'summary.json', {**base, 'status': status, 'error': failure,
-              'settings': [r['setting'] for r in reports]})
+              'settings': settings_started})
         print(f'Saved load reports: {out}', flush=True)
 
 

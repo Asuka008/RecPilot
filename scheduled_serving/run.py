@@ -10,7 +10,7 @@ import time
 
 from benchmarks.common import digest, output_dir, provenance, write
 from scheduled_serving.config import load_config
-from scheduled_serving.http import BoundedHTTPServer
+from scheduled_serving.http import BoundedHTTPServer, TRANSPORTS
 from scheduled_serving.scheduler import Metrics, Scheduler
 
 
@@ -30,12 +30,19 @@ def main():
     parser.add_argument('action', choices=['serve', 'check'])
     parser.add_argument('--config', type=Path, default=Path('configs/scheduled-serving-server.json'))
     parser.add_argument('--samples', type=int, default=100)
+    parser.add_argument('--transport', choices=TRANSPORTS, default='original')
     args = parser.parse_args()
     if not 1 <= args.samples <= 1000:
         parser.error('samples must be between 1 and 1000')
     config = load_config(args.config)
     out = output_dir(config['output_dir'])
-    report = {'status': 'RUNNING', 'action': args.action, 'config': config, 'provenance': provenance(),
+    run_service(args.action, args.config, config, args.samples, args.transport, out)
+
+
+def run_service(action, config_path, config, samples, transport, out, on_verified=None):
+    """Admit and warm a fresh worker; optionally exercise the checked HTTP instance."""
+    report = {'status': 'RUNNING', 'action': 'transport_trial' if on_verified else action,
+              'config': config, 'transport': transport, 'provenance': provenance(),
               'scope': 'Single-worker scheduling only; unchanged recommendation formula, no batching or new quality selection.'}
     server = scheduler = thread = None
     try:
@@ -46,10 +53,10 @@ def main():
         engine, records, meta = load_runtime(ROOT / config['runtime_config'])
         report['runtime_manifest'] = meta
         sources = {str(p.relative_to(ROOT)): digest(p) for p in sorted((ROOT / 'scheduled_serving').glob('*.py'))}
-        identity = {'model_id': engine.identity, 'config': config, 'sources': sources}
+        identity = {'model_id': engine.identity, 'config': config, 'sources': sources, 'transport': transport}
         service_id = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         report['service_identity'] = {**identity, 'service_id': service_id}
-        report['config_sha256'] = digest(args.config)
+        report['config_sha256'] = digest(config_path)
         print('Artifact admission: PASS', flush=True)
         print('Actual runtime:', json.dumps(meta['runtime']), flush=True)
         def initialize():
@@ -58,10 +65,10 @@ def main():
         def validate(request):
             validate_request(request, engine.num_items, engine.max_history, engine.max_k)
         requests, expected = [], []
-        if args.action == 'check':
+        if action == 'check':
             ordered = sorted(records, key=lambda r: (len(r['train']), r['user_id']))
-            for i in range(args.samples):
-                index = i * (len(ordered) - 1) // max(1, args.samples - 1)
+            for i in range(samples):
+                index = i * (len(ordered) - 1) // max(1, samples - 1)
                 request = {'history': ordered[index]['train'], 'k': min(20, engine.max_k)}
                 requests.append(request)
             requests.append({'history': [], 'k': min(20, engine.max_k)})
@@ -75,12 +82,13 @@ def main():
         with scheduler.metrics.lock:
             scheduler.metrics.counters.clear()
             scheduler.metrics.histograms.clear()
-        manifest = {'service_id': service_id, 'runtime': meta['runtime'], 'scheduler_config': config}
-        port = 0 if args.action == 'check' else config['port']
+        manifest = {'service_id': service_id, 'runtime': meta['runtime'], 'scheduler_config': config,
+                    'transport': transport}
+        port = 0 if action == 'check' else config['port']
         server = BoundedHTTPServer((config['host'], port), scheduler, validate,
-                                   engine.identity, engine.num_items, config, manifest)
+                                   engine.identity, engine.num_items, config, manifest, transport)
         write(out / 'results.json', report)
-        if args.action == 'check':
+        if action == 'check':
             thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': .05}, daemon=True)
             thread.start()
             port = server.server_port
@@ -101,6 +109,9 @@ def main():
                 raise ValueError('Metrics identity mismatch')
             report['parity'] = {'requests': len(requests), 'scores_and_topk_exact': True,
                                 'scope': 'Training histories plus empty-history fallback; no quality evaluation'}
+            if on_verified is not None:
+                write(out / 'results.json', report)
+                on_verified(port, health)
             report['status'] = 'PASS'
         else:
             def terminate(signum, frame):
@@ -115,7 +126,7 @@ def main():
             finally:
                 signal.signal(signal.SIGTERM, previous)
         verify_unchanged(meta['inputs_sha256'])
-        if sources != {p: digest(ROOT / p) for p in sources} or digest(args.config) != report['config_sha256']:
+        if sources != {p: digest(ROOT / p) for p in sources} or digest(config_path) != report['config_sha256']:
             raise ValueError('Scheduling sources or configuration changed during execution')
     except KeyboardInterrupt:
         report['status'] = 'INTERRUPTED'
@@ -130,7 +141,7 @@ def main():
                 thread.join()
             report['shutdown'] = server.stop()
             report['metrics'] = server.snapshot()
-            if args.action == 'check' and not all(report['shutdown'].values()):
+            if action == 'check' and not all(report['shutdown'].values()):
                 report.update(status='FAIL', error='Check did not drain cleanly')
         elif scheduler:
             report['shutdown'] = {'worker_drained': scheduler.close(config['shutdown_grace_seconds'])}

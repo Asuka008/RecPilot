@@ -8,7 +8,12 @@ import threading
 import time
 import uuid
 
+from scheduled_serving.deadlines import DeadlineMonitor
+from scheduled_serving.handlers import HandlerPool
 from scheduled_serving.scheduler import Expired, Rejected
+
+
+TRANSPORTS = ('original', 'shared-timer', 'handler-pool', 'pool-and-shared-timer')
 
 
 @dataclass
@@ -33,7 +38,10 @@ class BoundedHTTPServer(ThreadingMixIn, HTTPServer):
     block_on_close = False
     allow_reuse_address = True
 
-    def __init__(self, address, scheduler, validate, identity, catalog, config, manifest):
+    def __init__(self, address, scheduler, validate, identity, catalog, config, manifest,
+                 transport='original'):
+        if transport not in TRANSPORTS:
+            raise ValueError('Unknown transport: ' + transport)
         self.scheduler, self.validate = scheduler, validate
         self.identity, self.catalog = identity, catalog
         self.config = config
@@ -44,6 +52,19 @@ class BoundedHTTPServer(ThreadingMixIn, HTTPServer):
         self.connections_lock = threading.Condition()
         self.request_queue_size = config['listen_backlog']
         super().__init__(address, Handler)
+        self.pool = self.monitor = None
+        try:
+            if transport in ('handler-pool', 'pool-and-shared-timer'):
+                self.pool = HandlerPool(config['max_connections'], self.process_request_thread)
+                self.metrics.increment('handler_threads_started', len(self.pool.threads))
+            if transport in ('shared-timer', 'pool-and-shared-timer'):
+                self.monitor = DeadlineMonitor(self._expire)
+                self.metrics.increment('deadline_threads_started')
+        except BaseException:
+            if self.pool:
+                self.pool.close(config['shutdown_grace_seconds'])
+            self.server_close()
+            raise
 
     def get_request(self):
         sock, address = super().get_request()
@@ -75,28 +96,46 @@ class BoundedHTTPServer(ThreadingMixIn, HTTPServer):
             return
         with self.connections_lock:
             context = self.connections[request]
-        def watchdog():
-            with context.lock:
-                if context.finished:
-                    return
-                self.metrics.increment('connection_deadline_closed')
-                stop_socket(request)
-        context.timer = threading.Timer(max(0., context.deadline - time.monotonic()), watchdog)
-        context.timer.daemon = True
-        context.timer.start()
         try:
-            super().process_request(request, client_address)
+            if self.monitor:
+                self.monitor.register(request, context)
+            else:
+                context.timer = threading.Timer(max(0., context.deadline - time.monotonic()),
+                                                self._expire, args=(request, context))
+                context.timer.daemon = True
+                context.timer.start()
+                self.metrics.increment('deadline_threads_started')
+            if self.pool:
+                # A slot stays occupied from before submit until handler cleanup.
+                self.pool.submit(request, client_address)
+            else:
+                super().process_request(request, client_address)
         except Exception:
-            context.timer.cancel()
             self.shutdown_request(request)
             self._release(request, context)
             raise
 
-    def _release(self, sock, context):
+    def _expire(self, sock, context):
         with context.lock:
-            context.finished = True
-            if context.timer:
-                context.timer.cancel()
+            if not context.finished:
+                self.metrics.increment('connection_deadline_closed')
+                stop_socket(sock)
+
+    def shutdown_request(self, request):
+        # Exclude a watchdog racing with close and descriptor reuse.
+        with self.connections_lock:
+            context = self.connections.get(request)
+        if context:
+            with context.lock:
+                context.finished = True
+        super().shutdown_request(request)
+
+    def _release(self, sock, context):
+        if self.monitor:
+            self.monitor.discard(sock)
+        elif context.timer:
+            context.timer.cancel()
+            context.timer = None
         self.metrics.observe('accepted_connection_ms', (time.monotonic() - context.accepted) * 1000)
         with self.connections_lock:
             self.connections.pop(sock, None)
@@ -104,6 +143,8 @@ class BoundedHTTPServer(ThreadingMixIn, HTTPServer):
         self.slots.release()
 
     def process_request_thread(self, request, client_address):
+        if not self.pool:
+            self.metrics.increment('handler_threads_started')
         with self.connections_lock:
             context = self.connections[request]
         try:
@@ -117,6 +158,7 @@ class BoundedHTTPServer(ThreadingMixIn, HTTPServer):
 
     def snapshot(self):
         snapshot = self.metrics.snapshot()
+        snapshot['process_cpu_seconds'] = time.process_time()
         snapshot['scheduler'] = self.scheduler.snapshot()
         with self.connections_lock:
             snapshot['connections'] = len(self.connections)
@@ -129,13 +171,20 @@ class BoundedHTTPServer(ThreadingMixIn, HTTPServer):
         """Call after serve_forever stops; invalidate jobs and bound shutdown wait."""
         drained = self.scheduler.close(self.config['shutdown_grace_seconds'])
         with self.connections_lock:
-            for sock in list(self.connections):
-                stop_socket(sock)
+            for sock, context in self.connections.items():
+                with context.lock:
+                    if not context.finished:
+                        stop_socket(sock)
         super().server_close()
         with self.connections_lock:
             handlers_drained = self.connections_lock.wait_for(lambda: not self.connections,
                                                               self.config['shutdown_grace_seconds'])
-        return {'worker_drained': drained, 'handlers_drained': handlers_drained}
+        result = {'worker_drained': drained, 'handlers_drained': handlers_drained}
+        if self.monitor:
+            result['deadline_monitor_stopped'] = self.monitor.close(self.config['shutdown_grace_seconds'])
+        if self.pool:
+            result['handler_pool_stopped'] = self.pool.close(self.config['shutdown_grace_seconds'])
+        return result
 
 
 class Handler(BaseHTTPRequestHandler):
