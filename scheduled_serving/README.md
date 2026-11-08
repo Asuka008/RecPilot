@@ -90,8 +90,8 @@ grace is explicitly reported as not drained, rather than claimed to be cancelled
 
 Local verification: 13 standard-library scheduler/HTTP/collector tests passed,
 plus four existing benchmark tests, syntax and CLI checks. They use synthetic
-engines, not PyTorch. Real-model HTTP parity has subsequently passed on the server; new load
-measurements remain pending (see the verification record below).
+engines, not PyTorch. Real-model HTTP parity passed on the server. All eight load points are documented in the
+[paired measurements](RESULTS-2026-11-08.md).
 Developer tests and teaching notes remain local-only under the repository policy.
 
 In the server project root, activate the existing environment and inspect the
@@ -191,5 +191,4 @@ model ID remains `17aaae44451f3d9fe5de7e4ee9a6e2e3a3ff981bf55374c4d836227f76d9ab
 the scheduler service ID is
 `d9a87e9b6ab2ba9753bbe42b00117a62e8cc56381d935fb4fe985051d272b649`.
 
-No load-capacity or latency improvement is inferred from this check. Proceed to
-serve/load commands above; do not repeat parity for documentation-only changes.
+The subsequent [load comparison](RESULTS-2026-11-08.md) records the overload behavior and the throughput regression.
