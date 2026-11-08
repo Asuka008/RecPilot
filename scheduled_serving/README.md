@@ -239,6 +239,27 @@ Each cell gives round 1 / round 2. Successes include completions during drain. Q
 
 Across all eight windows, all 96,000 offered requests reached the client dispatch path. Every one of the 329 unsuccessful requests received HTTP 503 and corresponds to a full-queue rejection. Of these, 297 occurred in the original transport's second round. Its mean core time rose from 3.90 to 4.70 ms while mean queue time rose from 0.61 to 39.61 ms. The control itself varied substantially between rounds, which limits attribution of the historical 108.61 ms p99 to any single cost.
 
-The original transport started 12,127 handler threads per server lifetime, including parity, warmup and control calls. The handler pool started 64 and still started 12,127 timer threads. Sharing the timer as well brought that count to one. The combined variant served all requests but crossed the latency limit in round 2. These results favor retaining `handler-pool` as the candidate for the overload comparison. Its behavior at 400 arrivals/s and with 32 continuously active clients remains unmeasured.
+The original transport started 12,127 handler threads per server lifetime, including parity, warmup and control calls. The handler pool started 64 and still started 12,127 timer threads. Sharing the timer as well brought that count to one. The combined variant served all requests but crossed the latency limit in round 2. These results qualified `handler-pool` for overload testing.
 
 The returned summary records eight distinct server instances at commit `d9af9db` on an A100 MIG 2g.20gb, FP32, with 24 Torch threads. Each instance matched the 101 direct-reference responses and drained its active workers at shutdown. The source/configuration digests match this experiment's Git revision. All four service IDs, eight target outcomes and the client/server outcome counts were checked from the summary. The latency percentiles come from the load client’s summary. Raw per-request samples were retained on the server. Returned summary SHA-256 is `93f5220783b2f9650f65b2b3452f40998c527eb53e474a5b6aa83cbe0d337b20`.
+
+## Server results under overload
+
+Each of eight fresh server instances ran 400 scheduled arrivals/s followed by 32 closed-loop clients, for 60 seconds each. Round 2 reversed transport order. All eight instances matched the 101 direct reference responses and shut down cleanly on the A100 MIG 2g.20gb. Client drops were zero across all 16 windows. Successful QPS counts valid responses completed inside the window. Success counts and percentages also include responses completed during drain.
+
+Each cell gives round 1 / round 2.
+
+| Transport | 400/s successful QPS | 400/s offered success | 400/s successful HTTP p99 (ms) | Closed-32 successful QPS | Closed-32 valid responses / attempts (round 1, round 2) |
+|---|---:|---:|---:|---:|---:|
+| original | 194.98 / 183.87 | 48.82% / 46.04% | 99.18 / 121.24 | 0.83 / 0.75 | 64 / 68,753, 61 / 68,031 |
+| shared-timer | 192.25 / 203.80 | 48.13% / 51.02% | 119.30 / 105.04 | 0.13 / 0.20 | 24 / 90,130, 24 / 92,102 |
+| handler-pool | 202.47 / 191.92 | 50.69% / 48.05% | 96.86 / 106.39 | 0.18 / 0.15 | 26 / 90,864, 25 / 85,774 |
+| pool-and-shared-timer | 214.98 / 218.42 | 53.82% / 54.67% | 90.64 / 89.17 | 0.12 / 0.07 | 22 / 130,394, 20 / 129,059 |
+
+At 400/s the combined transport delivered the most recommendations in both rounds. It completed 12,916 and 13,122 of 24,000 offered requests. Every unsuccessful request at this load received a full-queue 503. The handler pool alone remains the only variant that met the earlier 200/s latency and success target in both rounds.
+
+Under closed-32, each client sends its next request immediately after any outcome. The combined transport received about 129,000–130,000 attempts per window. Across all eight closed-loop windows, 755,107 attempts produced 266 valid responses including drain, 714,071 full-queue 503s, 40,766 deadline 504s and four transport errors. Only 146 valid responses completed within the windows. The handler pool alone averaged about 177 ms waiting in the queue for jobs that started execution. Its worker discarded 1,109 and 1,030 late results. The execution cutoff was 190 ms from accept. The historical serial service recorded 237.33 successful QPS at the same client concurrency in a separate run.
+
+A follow-up can hold the handler pool and 32 clients fixed and compare immediate resubmission with honoring Retry-After on 503. Measure attempted and successful QPS, queue residence and late results. Client pacing changes offered load, so a higher success percentage alone would be insufficient to establish improved throughput.
+
+The model, request corpus, configuration and source hashes match the experiment at `d9af9db`. Client outcome totals and server 200/503/504 write counts reconcile in every window. Percentiles are those reported by the load client. The experiment verifies drain and shutdown. Measuring recovery time would require observing service after load returns to normal. Returned summary SHA-256 is `576e71c069ab6c827cd6eff8c57103deacd4211dad900f5e6e55498752b575d8`.
