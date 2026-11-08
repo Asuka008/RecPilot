@@ -227,7 +227,7 @@ third_party/      Upstream license notices
 
 ## Limitations and Next Steps
 
-The [HTTP transport comparison](scheduled_serving/README.md#isolating-http-thread-creation-at-200-requests-per-second) tests the 200 requests/s regression with four configurations covering handler reuse and deadline monitoring. The server command runs two rounds and writes one comparison summary. GPU performance verification for these variants is pending.
+At 200 offered requests/s on an A100 MIG 2g.20gb, the reusable HTTP handler pool served 12,000/12,000 requests in each of two rounds. Successful HTTP p99 was 12.46 and 13.54 ms. Of four configurations, only the handler pool with per-connection timers met the 20 ms target in both rounds. See the [server measurements and overload follow-up](scheduled_serving/README.md#server-results-at-200-requests-per-second).
 
 The frozen recipe has completed offline evaluation and a local HTTP demonstration. Multi-seed robustness, global-time replay, production availability and online gains remain unverified. Initial HTTP concurrency measurements are complete and expose overload failures. There is no full SASRec comparison, so no superiority over SASRec is claimed. Negative title results apply to the tested recipes. Agents are outside the current implementation scope; MiniOneRec and related models remain reading references.
 

@@ -223,3 +223,22 @@ The terminal prints `Transport comparison: COMPLETE` after all measured runs and
 The primary target is **12,000 valid responses out of 12,000 offered and successful HTTP p99 ≤ 20 ms in each of the two rounds**. This is an experiment target set from the historical serial observation. Also check successful QPS inside the window, p99 from scheduled arrival, and client dispatch lag. Compare `original` with each single change and then with the combined setting in both rounds. A large drop in thread starts with little change in successful QPS or tail latency is evidence to investigate another source of delay. Two observations per variant support a directional comparison on this hardware.
 
 For a separate overload comparison, `python -m scheduled_serving.compare --settings open-400 closed-32` runs only those two load points. Compare offered success, all-attempt latency, 503/504 counts and client drops. With closed-loop load, fast refusals can increase the number of attempted requests.
+
+### Server results at 200 requests per second
+
+Only `handler-pool` met the predeclared target in both rounds. It kept the per-connection deadline timer, reused 64 HTTP handler threads, and served all 24,000 offered requests across its two 60-second windows. Successful HTTP p99 was 12.46 ms and 13.54 ms. Measured from scheduled arrival, successful p99 was 12.64 ms and 13.69 ms. Window throughput was 199.98 and 199.97 successful requests/s.
+
+Each cell gives round 1 / round 2. Successes include completions during drain. Queue times are means over jobs that started inference.
+
+| Transport | Valid responses out of 12,000 | Successful HTTP p99 (ms) | Queue mean (ms) | Server CPU (s) |
+|---|---:|---:|---:|---:|
+| Original | 12,000 / 11,703 | 14.47 / 110.49 | 0.61 / 39.61 | 57.50 / 62.68 |
+| Shared timer | 11,999 / 11,969 | 76.73 / 92.04 | 7.02 / 10.88 | 58.70 / 57.15 |
+| Handler pool | 12,000 / 12,000 | 12.46 / 13.54 | 0.28 / 0.40 | 53.55 / 54.37 |
+| Pool and shared timer | 12,000 / 12,000 | 17.75 / 22.16 | 0.51 / 1.93 | 52.31 / 57.54 |
+
+Across all eight windows, all 96,000 offered requests reached the client dispatch path. Every one of the 329 unsuccessful requests received HTTP 503 and corresponds to a full-queue rejection. Of these, 297 occurred in the original transport's second round. Its mean core time rose from 3.90 to 4.70 ms while mean queue time rose from 0.61 to 39.61 ms. The control itself varied substantially between rounds, which limits attribution of the historical 108.61 ms p99 to any single cost.
+
+The original transport started 12,127 handler threads per server lifetime, including parity, warmup and control calls. The handler pool started 64 and still started 12,127 timer threads. Sharing the timer as well brought that count to one. The combined variant served all requests but crossed the latency limit in round 2. These results favor retaining `handler-pool` as the candidate for the overload comparison. Its behavior at 400 arrivals/s and with 32 continuously active clients remains unmeasured.
+
+The returned summary records eight distinct server instances at commit `d9af9db` on an A100 MIG 2g.20gb, FP32, with 24 Torch threads. Each instance matched the 101 direct-reference responses and drained its active workers at shutdown. The source/configuration digests match this experiment's Git revision. All four service IDs, eight target outcomes and the client/server outcome counts were checked from the summary. The latency percentiles come from the load client’s summary. Raw per-request samples were retained on the server. Returned summary SHA-256 is `93f5220783b2f9650f65b2b3452f40998c527eb53e474a5b6aa83cbe0d337b20`.
