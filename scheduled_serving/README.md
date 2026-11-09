@@ -281,3 +281,38 @@ Run in one terminal on the server with the original request corpus and admitted 
 Each arm starts a fresh server and checks 101 reference responses. Round two reverses the order. Allow four minutes of measurement plus startup and verification. All services exit automatically and the client prints the path to `runs/pacing-comparison/<timestamp>/summary.json`.
 
 Use `paired_rounds` to compare successful QPS inside the window and counts of discarded late results (paced minus immediate). Confirm both clients encountered 503 responses in each round. Inspect attempts/s, 503/504 counts, successful p99, queue/core means, and the advertised delay distribution alongside these differences. Sleep time is summed across clients and records the requested pause. HTTP latency measures an individual attempt and excludes pauses between attempts. A lower attempt rate is part of the treatment. The load has no post-overload recovery window.
+
+### Measured effect of honoring Retry-After
+
+On the A100 MIG 2g.20gb, pacing the 32 clients increased valid recommendations delivered inside each 60-second window. Every observed 503 advertised a one-second delay. Each cell gives round 1 / round 2.
+
+| Metric | Immediate | Honor Retry-After |
+|---|---:|---:|
+| Attempted requests/s | 1,205.40 / 1,166.55 | 228.92 / 229.27 |
+| Successful requests/s within window | 0.38 / 0.17 | 213.63 / 213.98 |
+| Successful responses including drain | 35 / 27 | 12,835 / 12,856 |
+| Queue-full 503s | 67,195 / 64,868 | 900 / 900 |
+| HTTP 504s | 5,092 / 5,096 | 0 / 0 |
+| Late results discarded | 933 / 863 | 0 / 0 |
+| Mean queue time for started jobs (ms) | 175.07 / 174.82 | 73.53 / 73.46 |
+| Successful HTTP p99 (ms) | 201.07 / 200.69 | 93.02 / 93.51 |
+
+Paired improvements were 213.25 and 213.82 successful requests/s. Both immediate windows also had one disconnect and one incomplete read. Both paced windows delivered about 93.45% of attempted requests. Pacing deliberately reduced arrivals. The successful HTTP p99 excludes pauses between attempts. Across the 32 paced clients, requested pauses totaled about 898 client-seconds per window. The two rounds support this overload policy for a client with these resubmission semantics.
+
+All four instances passed the 101-response reference check and drained. Client counts of 200/503/504 responses matched server write counts. The returned summary identifies revision `701efcd`, the same frozen model and corpus, and matching scheduling and benchmark source digests. Percentiles are reported by the client. Summary SHA-256 is `9543b7acf28967b56bb0a95f09e238146e09e7ac4937b6e86d0a53bc618be272`.
+
+## Waiting queue capacity comparison
+
+Under paced load the single worker spent about 4.64 ms per started recommendation. A full queue of 16 waiting requests represents roughly 74 ms of work at that mean. Compare limits of 16 and 4 to measure whether earlier refusal reduces tail latency while retaining useful throughput. The active inference job is additional to the waiting limit.
+
+```bash
+cd "$HOME/AgenticRec"
+git pull --ff-only
+conda activate "$HOME/conda-envs/agenticrec-hstu-reference"
+nvidia-smi
+python -m scheduled_serving.compare --queue-depth
+```
+
+Each fresh handler-pool instance first runs open-200 to check all 12,000 arrivals succeed with successful HTTP p99 ≤ 20 ms. It then runs closed-32 with the one-second Retry-After policy. Two rounds reverse the order of the capacities. Eight 60-second measurement windows run in total, plus startup and verification. Each instance records its effective config and checks its live queue limit. The command exits and prints the path to `runs/queue-comparison/<timestamp>/summary.json`.
+
+Compare successful window QPS, successful p99, queue residence, 503s and attempted rate within each load and round. A shorter queue could reject bursts or keep more clients sleeping. Read any latency gain alongside those costs before selecting a queue size.

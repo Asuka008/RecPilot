@@ -22,6 +22,7 @@ CORPUS_SHA256 = '7977026a9873e0ee897fdb8b7dab642104e280f585592dd633fa5460204a103
 MODEL_ID = '17aaae44451f3d9fe5de7e4ee9a6e2e3a3ff981bf55374c4d836227f76d9abdb'
 TARGET_P99_MS = 20
 POINT_SECONDS = 60
+QUEUE_CAPACITIES = {'queue-16': 16, 'queue-4': 4}
 
 
 def collect(directory, requests, settings, port, health):
@@ -33,8 +34,8 @@ def collect(directory, requests, settings, port, health):
                    check=True)
 
 
-def trial(directory, requests, settings, transport):
-    run_service('check', CONFIG, load_config(CONFIG), 100, transport, directory,
+def trial(directory, requests, settings, transport, config_path=CONFIG):
+    run_service('check', config_path, load_config(config_path), 100, transport, directory,
                 on_verified=partial(collect, directory, requests, settings))
 
 
@@ -75,6 +76,7 @@ def read_trial(directory, settings, transport):
             or server['metrics']['connections'] != 0 or load['status'] != 'COMPLETE'
             or load['settings'] != settings or load['requests_sha256'] != CORPUS_SHA256
             or health['instance_id'] != instance or health['service_id'] != service['service_id']
+            or health['scheduler_config'] != service['config']
             or health['transport'] != transport or health['model_id'] != MODEL_ID):
         raise ValueError(f'Incomplete or mismatched trial in {directory}')
     rows = []
@@ -82,6 +84,9 @@ def read_trial(directory, settings, transport):
         point = json.loads((load_summary.parent / (setting + '.json')).read_text())
         m = point['measurement']
         mode, concurrency, rate = SETTINGS[setting]
+        for snapshot in (point['server_before'], point['server_after']):
+            if snapshot['scheduler']['queue_capacity'] != service['config']['queue_capacity']:
+                raise ValueError(f'Live queue capacity changed at {setting}')
         if (point['status'] != 'COMPLETE' or point['health'] != health or point['setting'] != setting
                 or point['requests_sha256'] != CORPUS_SHA256 or m['duration_seconds'] != POINT_SECONDS
                 or (m['mode'], m['concurrency_limit'], m['offered_rate'])
@@ -109,6 +114,8 @@ def main():
     experiment = parser.add_mutually_exclusive_group()
     experiment.add_argument('--pacing', action='store_true',
                             help='Compare immediate and Retry-After clients using the same handler pool')
+    experiment.add_argument('--queue-depth', action='store_true',
+                            help='Compare 16 and 4 waiting slots at open-200 and closed-32 with Retry-After')
     experiment.add_argument('--settings', nargs='+', choices=('open-200', 'open-400', 'closed-32'),
                         default=['open-200'])
     args = parser.parse_args()
@@ -116,7 +123,12 @@ def main():
         parser.error('settings must be distinct')
     if not args.requests.is_file() or digest(args.requests) != CORPUS_SHA256:
         parser.error(f'Provide the original request corpus with --requests (SHA-256 {CORPUS_SHA256})')
-    if args.pacing:
+    if args.queue_depth:
+        settings = ['open-200', 'closed-32-retry-after']
+        trials = [(label, 'handler-pool', settings) for label in QUEUE_CAPACITIES]
+        base_config = load_config(CONFIG)
+        out = output_dir('runs/queue-comparison')
+    elif args.pacing:
         settings = list(PACING_SETTINGS)
         trials = [(label, 'handler-pool', [label]) for label in settings]
         out = output_dir('runs/pacing-comparison')
@@ -136,7 +148,14 @@ def main():
                 directory = out / f'{round_no}-{label}'
                 directory.mkdir()
                 print(f'Round {round_no}/2, {label}', flush=True)
-                child = ctx.Process(target=trial, args=(directory, args.requests, trial_settings, transport))
+                kwargs = {}
+                if args.queue_depth:
+                    config_path = directory / 'scheduling-config.json'
+                    config = {**base_config, 'queue_capacity': QUEUE_CAPACITIES[label]}
+                    write(config_path, config)
+                    kwargs['config_path'] = config_path
+                child = ctx.Process(target=trial, args=(directory, args.requests, trial_settings, transport),
+                                    kwargs=kwargs)
                 child.start()
                 try:
                     child.join()
@@ -154,14 +173,22 @@ def main():
                 if child.exitcode:
                     raise RuntimeError(f'Trial failed in {directory} (exit {child.exitcode})')
                 matched, row = read_trial(directory, trial_settings, transport)
+                if args.queue_depth:
+                    if matched['config'] != config or matched['config_sha256'] != digest(config_path):
+                        raise ValueError(f'Queue configuration mismatch in {directory}')
+                    row['config_sha256'] = matched.pop('config_sha256')
+                    row['queue_capacity'] = matched['config'].pop('queue_capacity')
                 if matched != report.setdefault('matched', matched):
                     raise ValueError(f'Runtime, inputs or code changed in {directory}')
                 report['trials'].append(dict(round=round_no, **row))
                 write(summary, report)
         if 'open-200' in settings:
-            report['met_open_200_target_both_rounds'] = {
-                name: all(p['met_open_200_target'] for t in report['trials'] if t['transport'] == name
-                          for p in t['points'] if p['setting'] == 'open-200') for name in TRANSPORTS}
+            outcomes = {}
+            for t in report['trials']:
+                arm = f"queue-{t['queue_capacity']}" if args.queue_depth else t['transport']
+                point = next(p for p in t['points'] if p['setting'] == 'open-200')
+                outcomes.setdefault(arm, []).append(point['met_open_200_target'])
+            report['met_open_200_target_both_rounds'] = {arm: all(flags) for arm, flags in outcomes.items()}
             print('200/s target in both rounds:', report['met_open_200_target_both_rounds'], flush=True)
         if args.pacing:
             report['paired_rounds'] = []
@@ -184,6 +211,8 @@ def main():
     finally:
         write(summary, report)
         name = 'Client pacing' if args.pacing else 'Transport'
+        if args.queue_depth:
+            name = 'Queue capacity'
         print(f'{name} comparison: {report["status"]}\nSummary: {summary}', flush=True)
 
 
