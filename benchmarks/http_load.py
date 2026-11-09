@@ -28,7 +28,7 @@ def validate_response(value, request, identity, catalog):
         raise ValueError('Invalid score ordering')
 
 
-def exchange(host, port, method, path, payload, timeout):
+def exchange(host, port, method, path, payload, timeout, include_retry_after=False):
     # Each request uses a new connection, matching the current HTTP/1.0 server.
     connection = http.client.HTTPConnection(host, port, timeout=timeout)
     try:
@@ -36,12 +36,18 @@ def exchange(host, port, method, path, payload, timeout):
         connection.request(method, path, body, {'Content-Type': 'application/json'})
         response = connection.getresponse()
         raw = response.read()
-        return response.status, json.loads(raw)
+        result = response.status, json.loads(raw)
+        if include_retry_after:
+            return (*result, response.getheader('Retry-After'))
+        return result
     finally:
         connection.close()
 
 
-def run_load(host, port, requests, identity, catalog, mode, duration, concurrency, rate, timeout):
+def run_load(host, port, requests, identity, catalog, mode, duration, concurrency, rate, timeout,
+             pacing=None):
+    if pacing is not None and (mode != 'closed' or pacing not in ('immediate', 'retry-after')):
+        raise ValueError('503 pacing requires a closed-loop client and a known policy')
     samples, lock = [], threading.Lock()
     start = time.perf_counter()
     end = start + duration
@@ -49,9 +55,16 @@ def run_load(host, port, requests, identity, catalog, mode, duration, concurrenc
     def send(index, scheduled):
         actual = time.perf_counter()
         status, error = None, None
+        delay_seconds = None
         try:
             request = requests[index % len(requests)]
-            status, value = exchange(host, port, 'POST', '/recommend', request, timeout)
+            if pacing is None:
+                status, value = exchange(host, port, 'POST', '/recommend', request, timeout)
+            else:
+                status, value, header = exchange(host, port, 'POST', '/recommend', request,
+                                                 timeout, include_retry_after=True)
+                if status == 503 and header and header.isascii() and header.isdecimal():
+                    delay_seconds = int(header)
             if status != 200:
                 error = f'http_{status}'
             else:
@@ -59,16 +72,26 @@ def run_load(host, port, requests, identity, catalog, mode, duration, concurrenc
         except Exception as exc:
             error = type(exc).__name__
         done = time.perf_counter()
-        with lock:
-            samples.append({'index': index, 'status': status, 'error': error,
+        sample = {'index': index, 'status': status, 'error': error,
                 'dispatch_lag_ms': (actual - scheduled) * 1000,
                 'http_ms': (done - actual) * 1000,
                 'scheduled_to_completion_ms': (done - scheduled) * 1000,
-                'completed_in_window': done <= end})
+                'completed_in_window': done <= end}
+        if pacing is not None:
+            sample['retry_after_seconds'] = delay_seconds
+        with lock:
+            samples.append(sample)
+        return sample
     def closed(worker):
         index = worker
         while time.perf_counter() < end:
-            send(index, time.perf_counter())
+            sample = send(index, time.perf_counter())
+            if pacing == 'retry-after' and sample['status'] == 503:
+                remaining = max(0., end - time.perf_counter())
+                pause = min(remaining, sample['retry_after_seconds'] or 0)
+                if pause > 0:
+                    time.sleep(pause)
+                sample['pacing_sleep_requested_seconds'] = pause
             index += concurrency
     def bounded_send(index, scheduled):
         try:

@@ -12,7 +12,7 @@ import sys
 from benchmarks.common import digest, output_dir, provenance, write
 from scheduled_serving.config import load_config
 from scheduled_serving.http import TRANSPORTS
-from scheduled_serving.load import SETTINGS
+from scheduled_serving.load import SETTINGS, PACING_SETTINGS
 from scheduled_serving.run import run_service
 
 
@@ -56,6 +56,10 @@ def summarize_point(point):
     if point['setting'] == 'open-200':
         row['met_open_200_target'] = (row['offered'] == row['successful'] == 12000
                                       and p99 is not None and p99 <= TARGET_P99_MS)
+    if point['setting'] in PACING_SETTINGS:
+        row['client_pacing'] = point['client_pacing']
+        if row['client_pacing']['policy'] != PACING_SETTINGS[point['setting']]:
+            raise ValueError('Client pacing policy differs from requested setting')
     return row
 
 
@@ -102,26 +106,37 @@ def read_trial(directory, settings, transport):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--requests', type=Path, default=CORPUS)
-    parser.add_argument('--settings', nargs='+', choices=('open-200', 'open-400', 'closed-32'),
+    experiment = parser.add_mutually_exclusive_group()
+    experiment.add_argument('--pacing', action='store_true',
+                            help='Compare immediate and Retry-After clients using the same handler pool')
+    experiment.add_argument('--settings', nargs='+', choices=('open-200', 'open-400', 'closed-32'),
                         default=['open-200'])
     args = parser.parse_args()
     if len(set(args.settings)) != len(args.settings):
         parser.error('settings must be distinct')
     if not args.requests.is_file() or digest(args.requests) != CORPUS_SHA256:
         parser.error(f'Provide the original request corpus with --requests (SHA-256 {CORPUS_SHA256})')
-    out = output_dir('runs/transport-comparison')
+    if args.pacing:
+        settings = list(PACING_SETTINGS)
+        trials = [(label, 'handler-pool', [label]) for label in settings]
+        out = output_dir('runs/pacing-comparison')
+    else:
+        settings = args.settings
+        trials = [(transport, transport, settings) for transport in TRANSPORTS]
+        out = output_dir('runs/transport-comparison')
     summary = out / 'summary.json'
-    report = {'status': 'RUNNING', 'settings': args.settings, 'duration_seconds': POINT_SECONDS,
-              'rounds': 2, 'open_200_target': {'successful_of_offered': 12000, 'successful_p99_ms_max': TARGET_P99_MS},
-              'provenance': provenance(), 'trials': []}
+    report = {'status': 'RUNNING', 'settings': settings, 'duration_seconds': POINT_SECONDS,
+              'rounds': 2, 'provenance': provenance(), 'trials': []}
+    if not args.pacing:
+        report['open_200_target'] = {'successful_of_offered': 12000, 'successful_p99_ms_max': TARGET_P99_MS}
     ctx = multiprocessing.get_context('spawn')
     try:
-        for round_no, order in enumerate((TRANSPORTS, TRANSPORTS[::-1]), 1):
-            for transport in order:
-                directory = out / f'{round_no}-{transport}'
+        for round_no, order in enumerate((trials, trials[::-1]), 1):
+            for label, transport, trial_settings in order:
+                directory = out / f'{round_no}-{label}'
                 directory.mkdir()
-                print(f'Round {round_no}/2, {transport}', flush=True)
-                child = ctx.Process(target=trial, args=(directory, args.requests, args.settings, transport))
+                print(f'Round {round_no}/2, {label}', flush=True)
+                child = ctx.Process(target=trial, args=(directory, args.requests, trial_settings, transport))
                 child.start()
                 try:
                     child.join()
@@ -138,16 +153,29 @@ def main():
                         child.join()
                 if child.exitcode:
                     raise RuntimeError(f'Trial failed in {directory} (exit {child.exitcode})')
-                matched, row = read_trial(directory, args.settings, transport)
+                matched, row = read_trial(directory, trial_settings, transport)
                 if matched != report.setdefault('matched', matched):
                     raise ValueError(f'Runtime, inputs or code changed in {directory}')
                 report['trials'].append(dict(round=round_no, **row))
                 write(summary, report)
-        if 'open-200' in args.settings:
+        if 'open-200' in settings:
             report['met_open_200_target_both_rounds'] = {
                 name: all(p['met_open_200_target'] for t in report['trials'] if t['transport'] == name
                           for p in t['points'] if p['setting'] == 'open-200') for name in TRANSPORTS}
             print('200/s target in both rounds:', report['met_open_200_target_both_rounds'], flush=True)
+        if args.pacing:
+            report['paired_rounds'] = []
+            for round_no in (1, 2):
+                points = {t['points'][0]['client_pacing']['policy']: t['points'][0]
+                          for t in report['trials'] if t['round'] == round_no}
+                a, b = points['immediate'], points['retry-after']
+                report['paired_rounds'].append({
+                    'round': round_no,
+                    'both_clients_received_503': all(p['error_counts'].get('http_503', 0) > 0
+                                                     for p in (a, b)),
+                    'retry_after_minus_immediate_success_qps': b['success_qps_in_window'] - a['success_qps_in_window'],
+                    'retry_after_minus_immediate_late_results': b['counters'].get('late_results_discarded', 0)
+                                                              - a['counters'].get('late_results_discarded', 0)})
         report['status'] = 'COMPLETE'
     except BaseException as error:
         report.update(status='INTERRUPTED' if isinstance(error, KeyboardInterrupt) else 'FAIL',
@@ -155,7 +183,8 @@ def main():
         raise
     finally:
         write(summary, report)
-        print(f'Transport comparison: {report["status"]}\nSummary: {summary}', flush=True)
+        name = 'Client pacing' if args.pacing else 'Transport'
+        print(f'{name} comparison: {report["status"]}\nSummary: {summary}', flush=True)
 
 
 if __name__ == '__main__':

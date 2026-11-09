@@ -263,3 +263,21 @@ Under closed-32, each client sends its next request immediately after any outcom
 A follow-up can hold the handler pool and 32 clients fixed and compare immediate resubmission with honoring Retry-After on 503. Measure attempted and successful QPS, queue residence and late results. Client pacing changes offered load, so a higher success percentage alone would be insufficient to establish improved throughput.
 
 The model, request corpus, configuration and source hashes match the experiment at `d9af9db`. Client outcome totals and server 200/503/504 write counts reconcile in every window. Percentiles are those reported by the load client. The experiment verifies drain and shutdown. Measuring recovery time would require observing service after load returns to normal. Returned summary SHA-256 is `576e71c069ab6c827cd6eff8c57103deacd4211dad900f5e6e55498752b575d8`.
+
+## Client pacing after a 503
+
+With 32 closed-loop clients the handler pool previously discarded 1,109 and 1,030 late results across the two rounds. This experiment measures whether letting a refused client wait before sending its next request increases the number of valid recommendations returned inside the load window.
+
+```bash
+cd "$HOME/AgenticRec"
+git pull --ff-only
+conda activate "$HOME/conda-envs/agenticrec-hstu-reference"
+nvidia-smi
+python -m scheduled_serving.compare --pacing
+```
+
+Run in one terminal on the server with the original request corpus and admitted artifacts. Both arms use 32 clients, the handler pool, per-connection timers, one inference worker, batch size one and a 60-second window. Both read the actual Retry-After header on every complete 503 response. In the immediate arm the client continues immediately. In the paced arm only that client waits the advertised delta-seconds (currently one second), capped at the time left in the window. It then advances to its next workload entry. Each refused attempt is counted exactly once. A 504 or transport failure carries no added delay. A missing or invalid delta-seconds header on a complete 503 fails the point.
+
+Each arm starts a fresh server and checks 101 reference responses. Round two reverses the order. Allow four minutes of measurement plus startup and verification. All services exit automatically and the client prints the path to `runs/pacing-comparison/<timestamp>/summary.json`.
+
+Use `paired_rounds` to compare successful QPS inside the window and counts of discarded late results (paced minus immediate). Confirm both clients encountered 503 responses in each round. Inspect attempts/s, 503/504 counts, successful p99, queue/core means, and the advertised delay distribution alongside these differences. Sleep time is summed across clients and records the requested pause. HTTP latency measures an individual attempt and excludes pauses between attempts. A lower attempt rate is part of the treatment. The load has no post-overload recovery window.

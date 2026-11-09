@@ -14,6 +14,9 @@ from benchmarks.http_load import exchange, run_load, validate_response
 
 SETTINGS = {**{f'closed-{c}': ('closed', c, 100.) for c in (1, 4, 16, 32)},
             **{f'open-{r}': ('open', 32, float(r)) for r in (50, 100, 200, 400)}}
+DEFAULT_SETTINGS = list(SETTINGS)
+PACING_SETTINGS = {'closed-32-immediate': 'immediate', 'closed-32-retry-after': 'retry-after'}
+SETTINGS.update({label: SETTINGS['closed-32'] for label in PACING_SETTINGS})
 
 
 def read_metrics(host, port, identity, service_id, instance_id):
@@ -53,7 +56,7 @@ def main():
     parser.add_argument('--requests', required=True, type=Path)
     parser.add_argument('--duration', type=float, default=60)
     parser.add_argument('--output', default='runs/scheduled-load')
-    parser.add_argument('--settings', nargs='+', choices=SETTINGS, default=list(SETTINGS))
+    parser.add_argument('--settings', nargs='+', choices=SETTINGS, default=DEFAULT_SETTINGS)
     args = parser.parse_args()
     url = urlsplit(args.url)
     if url.scheme != 'http' or url.hostname not in {'127.0.0.1', 'localhost'} or url.path not in {'', '/'} or url.query or url.fragment or url.username:
@@ -99,7 +102,7 @@ def main():
                     raise ValueError('Service has unrelated queued or active inference')
                 report['server_before'] = before
                 measurement = run_load(host, port, requests, identity, health['catalog_items'],
-                                       mode, args.duration, concurrency, rate, 5)
+                                       mode, args.duration, concurrency, rate, 5, pacing=PACING_SETTINGS.get(label))
                 report['measurement'] = measurement
                 deadline = time.monotonic() + 5
                 while True:
@@ -113,6 +116,16 @@ def main():
                 report['server_before'], report['server_after'] = before, after
                 report['server_delta'] = metric_delta(before, after)
                 rows = measurement['samples']
+                if label in PACING_SETTINGS:
+                    refused = [r for r in rows if r['status'] == 503]
+                    if any(r['retry_after_seconds'] is None for r in refused):
+                        raise ValueError('Expected Retry-After delta-seconds on every 503')
+                    report['client_pacing'] = {
+                        'policy': PACING_SETTINGS[label],
+                        'attempts_per_window_second': measurement['attempted'] / args.duration,
+                        'retry_after_seconds_counts': dict(Counter(r['retry_after_seconds'] for r in refused)),
+                        'total_requested_client_sleep_seconds': sum(
+                            r.get('pacing_sleep_requested_seconds', 0.) for r in refused)}
                 report['all_attempt_http_ms'] = distribution([r['http_ms'] for r in rows])
                 report['error_counts'] = dict(Counter(r['error'] for r in rows if r['error']))
                 report['status'] = 'COMPLETE'
