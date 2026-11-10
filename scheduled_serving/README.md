@@ -316,3 +316,20 @@ python -m scheduled_serving.compare --queue-depth
 Each fresh handler-pool instance first runs open-200 to check all 12,000 arrivals succeed with successful HTTP p99 ≤ 20 ms. It then runs closed-32 with the one-second Retry-After policy. Two rounds reverse the order of the capacities. Eight 60-second measurement windows run in total, plus startup and verification. Each instance records its effective config and checks its live queue limit. The command exits and prints the path to `runs/queue-comparison/<timestamp>/summary.json`.
 
 Compare successful window QPS, successful p99, queue residence, 503s and attempted rate within each load and round. A shorter queue could reject bursts or keep more clients sleeping. Read any latency gain alongside those costs before selecting a queue size.
+
+### Queue capacity results
+
+At 200 scheduled arrivals/s, neither depth met the joint target of all 12,000 recommendations delivered and successful HTTP p99 ≤ 20 ms in either round. At 32 closed-loop clients honoring Retry-After, four slots reduced mean queue residence by about 75% in both rounds. Each cell gives round 1 / round 2.
+
+| Load | Waiting slots | Successful HTTP p99 (ms) | Mean queue (ms) | Successful QPS inside window | Queue-full 503s | Success including drain (%) |
+|---|---:|---:|---:|---:|---:|---:|
+| 200/s | 16 | 65.34 / 86.55 | 2.95 / 12.29 | 199.97 / 199.37 | 0 / 21 | 100.00 / 99.83 |
+| 200/s | 4 | 18.82 / 26.76 | 1.52 / 3.22 | 199.95 / 199.20 | 1 / 46 | 99.99 / 99.62 |
+| Closed-32, paced | 16 | 105.43 / 100.89 | 76.58 / 76.99 | 205.25 / 203.85 | 900 / 900 | 93.20 / 93.15 |
+| Closed-32, paced | 4 | 43.20 / 42.19 | 18.85 / 18.34 | 198.25 / 203.60 | 1,620 / 1,620 | 88.02 / 88.30 |
+
+In the paced windows, reducing capacity cut successful p99 by 58–59% while successful throughput fell by 7.00 and 0.25 requests/s. Mean core time stayed within 4.84–5.00 ms across the four windows (rounded). Each refused client waited before its next attempt. Successful HTTP latency excludes that pause. The shorter queue turned more arrivals away before execution.
+
+Retain 16 as the reference configuration. The earlier handler-pool 200/s p99 values of 12.46 and 13.54 ms did not recur here. To investigate that variation, inspect the existing open-200 raw samples by time within each window, including dispatch lag, successful HTTP latency and 503s. These summaries cannot identify the source of transient stalls.
+
+All four server instances passed 101 parity checks and drained. The eight windows recorded zero client drops. All failed attempts were full-queue 503s. Client and server counts, config and service IDs, source hashes and target flags were checked against the summary from revision `a90c1c1` on A100 MIG 2g.20gb. Percentiles are as reported by the client. Summary SHA-256 is `2a24734d2e2beea49ca9c857cb2d7a4b2f11b008ef42069bd88c19b855470b7c`.
