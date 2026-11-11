@@ -333,3 +333,19 @@ In the paced windows, reducing capacity cut successful p99 by 58–59% while suc
 Retain 16 as the reference configuration. The earlier handler-pool 200/s p99 values of 12.46 and 13.54 ms did not recur here. To investigate that variation, inspect the existing open-200 raw samples by time within each window, including dispatch lag, successful HTTP latency and 503s. These summaries cannot identify the source of transient stalls.
 
 All four server instances passed 101 parity checks and drained. The eight windows recorded zero client drops. All failed attempts were full-queue 503s. Client and server counts, config and service IDs, source hashes and target flags were checked against the summary from revision `a90c1c1` on A100 MIG 2g.20gb. Percentiles are as reported by the client. Summary SHA-256 is `2a24734d2e2beea49ca9c857cb2d7a4b2f11b008ef42069bd88c19b855470b7c`.
+
+### Locating open-200 tail latency in saved samples
+
+From the server checkout run the following offline analysis. It needs only Python and the saved load reports.
+
+```bash
+cd "$HOME/AgenticRec"
+git pull --ff-only
+python -m scripts.analyze_serving_tail
+```
+
+The command finds the submitted queue-comparison summary by digest, checks each raw open-200 file against its trial identity, and recomputes the successful HTTP p99 and outcome counts. It includes the two earlier handler-pool reference windows when their matching transport-comparison summary is available. Return the printed `runs/tail-analysis/<timestamp>/tail-analysis.json` file.
+
+One-second bins use scheduled arrival time (request index divided by 200). Each bin reports successful HTTP p99, successes over the 20 ms target, refusals, client drops and dispatch lag. A lag of at least 5 ms corresponds to one scheduled interarrival interval. The five-second interval with the highest slow-success count describes temporal concentration. Dispatch lag measures delay before the HTTP attempt starts. The saved client timings cannot divide an HTTP attempt into server queue, model execution and transport time.
+
+As a historical reference, the original scheduled server's `20261108T033424429212Z/open-200.json` contains 2,743 successful requests above 20 ms among 11,837 successes. Of those slow successes, 2,603 (94.9%) and all 163 queue-full responses fell in [13, 28) seconds. Only four slow successes had dispatch lag of at least 5 ms. That run used per-connection handlers. The queue experiment requires its own timelines.
